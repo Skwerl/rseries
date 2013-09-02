@@ -7,7 +7,6 @@ XBeeResponse response = XBeeResponse();
 ZBRxResponse rx = ZBRxResponse();
 ModemStatusResponse msr = ModemStatusResponse();
 
-
 uint8_t idCmd[] = {'I','D'};
 uint8_t opCmd[] = {'O','P'};
 

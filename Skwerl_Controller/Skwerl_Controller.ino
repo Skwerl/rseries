@@ -135,29 +135,29 @@ boolean rxpacketvalid=false;
 boolean rxpacketstart=false;
 boolean txbegin=false;
 
-int rx1ErrorCount=0;             // If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
-int rx1ErrorCountMAX = 8;         // if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
+int rx1ErrorCount=0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
+int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
 
-boolean rxDEBUG=true;           // Set to monitor invalid TX packets via Serial Monitor baud 115200
-boolean txDEBUG=true;           // Set to monitor sent TX packets via Serial Monitor baud 115200
+boolean rxDEBUG=true;				// Set to monitor invalid TX packets via Serial Monitor baud 115200
+boolean txDEBUG=true;				// Set to monitor sent TX packets via Serial Monitor baud 115200
 
-char* radiostatus = "--";        // This is used to hold display Status... if "OK" = Green else it used to display error code "XX" from Transmitter, and displays in RED
+char* radiostatus = "--";			// This is used to hold display Status... if "OK" = Green else it used to display error code "XX" from Transmitter, and displays in RED
 char* previousradiostatus = "--";
 
-//byte rxArray1[60]; // Allows for 60 Bytes to be read at once
-                   // XBee S2B only has room for about 100 packets of 54 bytes 
-                   // Arduino 022 only has 128 buffers for each Serial(0,1,2,3)
-                   // Also note use must use FastSerial.h 
+//byte rxArray1[60];				// Allows for 60 Bytes to be read at once
+									// XBee S2B only has room for about 100 packets of 54 bytes 
+									// Arduino 022 only has 128 buffers for each Serial(0,1,2,3)
+									// Also note use must use FastSerial.h 
      
 int buttonval;
 
 unsigned int rxVCC;
 unsigned int rxVCA;
 
-float dmmVCC;  // Display variable for Voltage from Receiver
-float dmmVCA;  // Display variable for Amperage from Receiver
+float dmmVCC;						// Display variable for Voltage from Receiver
+float dmmVCA;						// Display variable for Amperage from Receiver
 
-float testdmmVCA;  // Display variable for Amperage from Receiver
+float testdmmVCA;					// Display variable for Amperage from Receiver
 
 float previousdmmVCC = 00.0;
 float previousdmmVCA = 00.0;
@@ -167,25 +167,25 @@ unsigned char telemetryVCCLSB = 0;
 unsigned char telemetryVCAMSB = 0;
 unsigned char telemetryVCALSB = 0;
 
-float yellowVCC = 12.0;  // If RX voltage drops BELOW these thresholds, text will turn yellow then red.
+float yellowVCC = 12.0;				// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
 float redVCC = 11.5;
 
-float yellowVCA = 50.0;// If current goes ABOVE these thresholds, text will turn yellow then red.
+float yellowVCA = 50.0;				// If current goes ABOVE these thresholds, text will turn yellow then red.
 float redVCA = 65.0;
 
 long lastStatusBarUpdate = 0;
 long nextStatusBarUpdate = 0;
 
-int updateSTATUSdelay = 3500; // Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
+int updateSTATUSdelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
 
-int ProcessStateIndicator = 0;   // Alternates between 0 & 1 High
+int ProcessStateIndicator = 0;		// Alternates between 0 & 1 High
 
-int RSSI = 0;                 // XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
-int RSSIpin = 6;              // Arduino PWM Digital Pin used to read PWM signal from XBee Pin 6 RSSI 6 to 6 KISS
-unsigned long RSSIduration;   // Used to store Pulse Width from RSSIpin
-int xbRSSI = 0;               // XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
+int RSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
+int RSSIpin = 6;					// Arduino PWM Digital Pin used to read PWM signal from XBee Pin 6 RSSI 6 to 6 KISS
+unsigned long RSSIduration;			// Used to store Pulse Width from RSSIpin
+int xbRSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
 
-int xbATResponse = 0xFF;   // to verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
+int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
 
 long lastTriggerEventTime = millis(); 
 
@@ -340,7 +340,6 @@ int chan2Max = 232;     // Channel 2 Max - Forward & Reverse Speed
 int chan3Min = 77;      // Channel 3 Min - Dome Rotation  
 int chan3Max = 180;     // Channel 3 Max - Dome Rotation 
 
-
 //Servo chan1servo;  // create servo object to control a servo 
 //Servo chan2servo;  // create servo object to control a servo 
 //Servo chan3servo;  // create servo object to control a servo 
@@ -371,22 +370,22 @@ float vinSTRONG=3.4;    // If vin is above vinSTRONG display GREEN battery
 float vinWEAK=2.9;       // if vin is above vinWEAK display YELLOW otherwise display RED
 float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
 
-                // Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
-#define YM 9    // Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
-#define XM A8   // X- (Minus) must be an analog pin, use "An" notation! // Orig A2
-#define YP A9   // Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
-#define XP 8    // X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
+						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
+#define YM 9			// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
+#define XM A8			// X- (Minus) must be an analog pin, use "An" notation! // Orig A2
+#define YP A9			// Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
+#define XP 8			// X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
 
-                    // These can be adjusted for greater precision 
-#define TS_MINX 131 // Orig = 150
-#define TS_MINY 120 // Orig = 120
-#define TS_MAXX 920 // Orig = 920
-#define TS_MAXY 950 // Orig = 940
+						// These can be adjusted for greater precision 
+#define TS_MINX 131		// Orig = 150
+#define TS_MINY 120		// Orig = 120
+#define TS_MAXX 920		// Orig = 920
+#define TS_MAXY 950		// Orig = 940
 
-#define rotation 3  // Which only changes the orientation of the LCD not the touch screen
+#define rotation 3		// Which only changes the orientation of the LCD not the touch screen
 
-//#define MINPRESSURE 10     // REMOVE??
-//#define MAXPRESSURE 1000   // REMOVE??
+//#define MINPRESSURE 10		// REMOVE??
+//#define MAXPRESSURE 1000		// REMOVE??
 
 uint16_t touchedY;
 uint16_t touchedX;
@@ -394,14 +393,14 @@ uint16_t touchedX;
 // For better pressure precision, we need to know the resistance
 // between X+ and X- Use any multimeter to read it
 // For the one we're using, its 300 ohms across the X plate
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);						// Orig (XP, YP, XM, YM, 300)
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);			// Orig (XP, YP, XM, YM, 300)
 
 #define LCD_CS A3
 #define LCD_CD A2
 #define LCD_WR A1
 #define LCD_RD A0 
                                   
-#define LCD_RESET A4              // Use A4 to reset the Pin 7 of the TFT Display - Not Optional
+#define LCD_RESET A4		// Use A4 to reset the Pin 7 of the TFT Display - Not Optional
 
 // Color definitions
 #define	BLACK           0x0000
