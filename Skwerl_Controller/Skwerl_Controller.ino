@@ -82,8 +82,7 @@
 
 */
 
-#include "Arduino.h"                        // if so, include Arduino.h
-
+#include <Arduino.h>
 #include <Adafruit_GFX.h>       // Core graphics library
 #include <Adafruit_TFTLCD.h>    // Hardware-specific library
 #include <TFTLCD.h>             // TFT LCD functions - adafruit.com @ https://github.com/adafruit/TFTLCD-Library
@@ -1080,8 +1079,8 @@ void displayPOST() {									// Power Up Self Test and Init
 	
 	tft.fillRect(220, 60, 100, 17, BLACK);
 	tft.setCursor(220,60);
-	tft.setTextColor(GREEN);
-	tft.println("OK!");  
+	tft.setTextColor(BLUE);
+	tft.println("Skip");  
 
 	tft.setCursor(20,80);
 	tft.setTextColor(GREEN);
