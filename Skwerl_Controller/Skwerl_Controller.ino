@@ -1107,7 +1107,7 @@ void displayPOST() {									// Power Up Self Test and Init
 
 		xbee.readPacket(500);							// Wait 500msec to see if we got a response back
 		if (xbee.getResponse().isAvailable()) {
-			//receiverstatus = true;
+			receiverstatus = true;
 		}
 		//delay(100);
 		delay(1500);

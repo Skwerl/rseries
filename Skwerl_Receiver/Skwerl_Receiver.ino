@@ -13,6 +13,9 @@ uint8_t opCmd[] = {'O','P'};
 AtCommandRequest atRequest = AtCommandRequest(opCmd);
 AtCommandResponse atResponse = AtCommandResponse();
 
+byte joyx, joyy, accx, accy, accz, zbut, cbut;
+int triggerEvent;
+
 void setup() {
 	
 	Serial.begin(9600);									// DEBUG CODE
@@ -35,16 +38,31 @@ void loop() {
 	xbee.readPacket();
 
 	if (xbee.getResponse().isAvailable()) {
-		Serial.println("Got something...");
+		//Serial.println("Got something...");
 
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-			Serial.println("Got a ZB RX Packet...");
+			//Serial.println("Got a ZB RX Packet...");
 			xbee.getResponse().getZBRxResponse(rx);
-
+			
+			int joyx = rx.getData()[0];    // Left Right
+			int joyy = rx.getData()[1];    // Fwd Back
+			int accx = rx.getData()[2];    // Dome
+			//    int accy = rx.getData()[3];  // Nunchuk Y Acceleramator 
+			//    int accz = rx.getData()[4];  // Nunchuk Z Acceleramator
+			triggerEvent = rx.getData()[7];// TriggerEvent
+			//    int futureEvent = rx.getData()[8]; // Future Event Payload
+			
+			Serial.print(">> joyx =");Serial.print(joyx);								// DEBUG CODE
+			Serial.print("\tjoyy =");Serial.print(joyy);								// DEBUG CODE
+			Serial.print("\taccx =");Serial.print(accx);								// DEBUG CODE
+			Serial.print("\taccy =");Serial.print(accy);								// DEBUG CODE
+			Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
+			Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
+			
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
-				Serial.println("Sender got ACK");  
+				//Serial.println("Sender got ACK");  
 			} else {
-				Serial.println("Sender did not get ACK");  
+				//Serial.println("Sender did not get ACK");  
 			}
 
 			// Set dataLed PWM to value of the first byte in the data
