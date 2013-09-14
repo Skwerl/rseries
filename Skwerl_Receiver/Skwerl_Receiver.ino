@@ -1,8 +1,4 @@
 #include <XBee.h>
-#include <MP3Trigger.h>
-
-int xbeebps = 19200;
-int mp3bps = 38400;
 
 XBee xbee = XBee();
 XBeeResponse response = XBeeResponse();
@@ -18,23 +14,18 @@ AtCommandResponse atResponse = AtCommandResponse();
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 int triggerEvent;
 
-MP3Trigger trigger;
-
 void setup() {
 	
 	Serial.begin(9600);
-	Serial1.begin(xbeebps);
-	Serial2.begin(mp3bps);
+	Serial1.begin(19200);
+	Serial2.begin(38400);
 
 	xbee.setSerial(Serial1);							// Setup Xbee to use Serial1
-	xbee.begin(xbeebps);								// Setup Xbee to begin at 19200
-
-	trigger.setup(&Serial2);							// Setup MP3Trigger to use Serial2
+	xbee.begin(19200);									// Setup Xbee to begin at 19200
 
 	Serial.println(" ");  
 	Serial.println(" ");  
 	Serial.println("Listening...");  
-	trigger.setLooping(true,1);							// Just start looping Track 1?
 
 	delay(4000);
 	getOP();
@@ -44,7 +35,6 @@ void setup() {
 void loop() {
 
 	xbee.readPacket();
-	trigger.update();
 
 	if (xbee.getResponse().isAvailable()) {
 		//Serial.println("Got something...");
@@ -70,15 +60,18 @@ void loop() {
 
 			if (triggerEvent == 101) {
 				Serial.println("Z Button Pressed");
+				Serial2.write('t');
+				Serial2.write(2);
 			}
 			if (triggerEvent == 102) {
-				trigger.setLooping(false,1);
-				Serial2.write('T');
-				Serial2.write(2);
 				Serial.println("C Button Pressed");
+				Serial2.write('t');
+				Serial2.write(1);
 			}
 			if (triggerEvent == 103) {
 				Serial.println("Z+C Buttons Pressed");
+				Serial2.write('t');
+				Serial2.write(3);
 			}
 			
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
