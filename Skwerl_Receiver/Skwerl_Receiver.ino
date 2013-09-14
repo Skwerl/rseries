@@ -13,6 +13,7 @@ AtCommandResponse atResponse = AtCommandResponse();
 
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 int triggerEvent;
+int randNum;
 
 void setup() {
 	
@@ -27,7 +28,9 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	delay(4000);
+	playSound(164);
+
+	delay(3000);
 	getOP();
 
 }
@@ -58,20 +61,37 @@ void loop() {
 			Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
 			Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
 
-			if (triggerEvent == 101) {
-				Serial.println("Z Button Pressed");
-				Serial2.write('t');
-				Serial2.write(2);
-			}
 			if (triggerEvent == 102) {
 				Serial.println("C Button Pressed");
-				Serial2.write('t');
-				Serial2.write(1);
+				if (joyy <= 70) {
+					// Joystick up, play "happy" sound:
+					randNum = random(41,83);
+					playSound(randNum);
+				} else if (joyx >= 110) {
+					// Joystick left, play "scared" sound:
+					randNum = random(83,137);
+					playSound(randNum);
+				} else if (joyx <= 70) {
+					// Joystick right, play "angry" sound:
+					randNum = random(137,150);
+					playSound(randNum);
+				} else {
+					// Joystick down or neutral, play "casual" sound:
+					randNum = random(1,41);
+					playSound(randNum);
+				}
 			}
+
+			if (triggerEvent == 101) {
+				Serial.println("Z Button Pressed");
+				// Play cantina song:
+				playSound(152);				
+			}
+
 			if (triggerEvent == 103) {
 				Serial.println("Z+C Buttons Pressed");
-				Serial2.write('t');
-				Serial2.write(3);
+				// Play Leia's message:
+				playSound(156);				
 			}
 			
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
@@ -132,5 +152,15 @@ void getOP() {
 			Serial.print("Command failed");
 		}
 	}
+
+}
+
+void playSound(int sample) {
+
+	Serial.print("Playing sample #");
+	Serial.println(sample);
+
+	Serial2.write('t');
+	Serial2.write(sample);
 
 }
