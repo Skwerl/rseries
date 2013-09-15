@@ -86,101 +86,63 @@
 #include <Adafruit_TFTLCD.h>    // Hardware-specific library
 #include <TFTLCD.h>             // TFT LCD functions - adafruit.com @ https://github.com/adafruit/TFTLCD-Library
 #include <TouchScreen.h>        // Touch Screen functions - adafruit.com @ https://github.com/adafruit/Touch-Screen-Library
-#include <XBee.h>               // Using to get RSSI values in displayRSSI
-#include <Wire.h>               // Used to read the I2C data from Nunchuck - Arduino
-#include <ArduinoNunchuk.h>     // Arduino Nunchuk - Gabriel Bianconi @  http://www.gabrielbianconi.com/projects/arduinonunchuk/
+#include <XBee.h>               
+#include <Wire.h>               // Used to read the I2C data from Nunchuck
+#include <ArduinoNunchuk.h>     // Gabriel Bianconi @ http://www.gabrielbianconi.com/projects/arduinonunchuk/
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* RSeries Configuration *////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+char* radiostatus = "...";
 
 //byte rxArray1[60];				// Allows for 60 Bytes to be read at once
 									// XBee S2B only has room for about 100 packets of 54 bytes 
 									// Arduino 022 only has 128 buffers for each Serial(0,1,2,3)
 									// Also note use must use FastSerial.h 
-     
-int buttonval;
-
-unsigned int rxVCC;
-unsigned int rxVCA;
-
-float dmmVCC;						// Display variable for Voltage from Receiver
-float dmmVCA;						// Display variable for Amperage from Receiver
-
-float testdmmVCA;					// Display variable for Amperage from Receiver
-
-float previousdmmVCC = 00.0;
-float previousdmmVCA = 00.0;
-
-unsigned char telemetryVCCMSB = 0;
-unsigned char telemetryVCCLSB = 0;
-unsigned char telemetryVCAMSB = 0;
-unsigned char telemetryVCALSB = 0;
-
-float yellowVCC = 12.0;				// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
-float redVCC = 11.5;
-
-float yellowVCA = 50.0;				// If current goes ABOVE these thresholds, text will turn yellow then red.
-float redVCA = 65.0;
-
-long lastStatusBarUpdate = 0;
-long nextStatusBarUpdate = 0;
-
-int updateSTATUSdelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
-
-int ProcessStateIndicator = 0;		// Alternates between 0 & 1 High
-
-int RSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
-int RSSIpin = 6;					// Arduino PWM Digital Pin used to read PWM signal from XBee Pin 6 RSSI 6 to 6 KISS
-unsigned long RSSIduration;			// Used to store Pulse Width from RSSIpin
-int xbRSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
-
-int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
-
-long lastTriggerEventTime = millis();
 
 // Define which digital pins on the arduino are for servo data signals 
-//int servo1Pin = 6;    // Channel 1 - Left Right  
-//int servo2Pin = 7;    // Channel 2 - Forward & Reverse Speed
-//int servo3Pin = 10;   // Channel 3 - Dome Rotation 
+//int servo1Pin = 6;				// Channel 1 - Left Right  
+//int servo2Pin = 7;				// Channel 2 - Forward & Reverse Speed
+//int servo3Pin = 10;				// Channel 3 - Dome Rotation 
 
 // Servo Center Adjustment 
-int chan1Center = 90;   // Channel 1 - Left Right  
-int chan2Center = 90;   // Channel 2 - Forward & Reverse Speed
-int chan3Center = 90;   // Channel 3 - Dome Rotation 
+int chan1Center = 90;				// Channel 1 - Left Right  
+int chan2Center = 90;				// Channel 2 - Forward & Reverse Speed
+int chan3Center = 90;				// Channel 3 - Dome Rotation 
 
 // Channel Adjustment 
-int chan1Adjust = 0;    // Channel 1 - Left Right  
-int chan2Adjust = 0;    // Channel 2 - Forward & Reverse Speed
-int chan3Adjust = 0;    // Channel 3 - Dome Rotation 
+int chan1Adjust = 0;				// Channel 1 - Left Right  
+int chan2Adjust = 0;				// Channel 2 - Forward & Reverse Speed
+int chan3Adjust = 0;				// Channel 3 - Dome Rotation 
 
 // Channel Center Adjustment
-int chan1Trim = 0;     // Channel 1 - Left Right  
-int chan2Trim = 0;     // Channel 2 - Forward & Reverse Speed
-int chan3Trim = 0;      // Channel 3 - Dome Rotation 
+int chan1Trim = 0;					// Channel 1 - Left Right  
+int chan2Trim = 0;					// Channel 2 - Forward & Reverse Speed
+int chan3Trim = 0;					// Channel 3 - Dome Rotation 
 
 // Neutral Adjustments 
-int chan1Neutral = 130; // Channel 1 - Left Right  
-int chan2Neutral = 130; // Channel 2 - Forward & Reverse Speed
-int chan3Neutral = 130; // Channel 3 - Dome Rotation 
+int chan1Neutral = 130;				// Channel 1 - Left Right  
+int chan2Neutral = 130;				// Channel 2 - Forward & Reverse Speed
+int chan3Neutral = 130;				// Channel 3 - Dome Rotation 
 
-// Neutral Width Adjustment, which takes Neutral + & - these values. So 120 to 140 would be considered Neutral or 90
-int chan1Width = 10;    // Channel 1 - Left Right  
-int chan2Width = 10;    // Channel 2 - Forward & Reverse Speed
-int chan3Width = 10;    // Channel 3 - Dome Rotation 
+// Neutral Width Adjustment, which takes Neutral + & - these values.
+// So 120 to 140 would be considered Neutral or 90
+int chan1Width = 10;				// Channel 1 - Left Right  
+int chan2Width = 10;				// Channel 2 - Forward & Reverse Speed
+int chan3Width = 10;				// Channel 3 - Dome Rotation 
 
-                        // Nunchuck End Points Channel Adjustment 
-int chan1Min = 27;      // Channel 1 Min - Left Right  
-int chan1Max = 229;     // Channel 1 Max - Left Right
-int chan2Min = 30;      // Channel 2 Min - Forward & Reverse Speed 
-int chan2Max = 232;     // Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 77;      // Channel 3 Min - Dome Rotation  
-int chan3Max = 180;     // Channel 3 Max - Dome Rotation 
+// Nunchuck End Points Channel Adjustment 
+int chan1Min = 27;					// Channel 1 Min - Left Right  
+int chan1Max = 229;					// Channel 1 Max - Left Right
+int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
+int chan2Max = 232;					// Channel 2 Max - Forward & Reverse Speed
+int chan3Min = 77;					// Channel 3 Min - Dome Rotation  
+int chan3Max = 180;					// Channel 3 Max - Dome Rotation 
 
-//Servo chan1servo;  // create servo object to control a servo 
-//Servo chan2servo;  // create servo object to control a servo 
-//Servo chan3servo;  // create servo object to control a servo 
+//Servo chan1servo;					// create servo object to control a servo 
+//Servo chan2servo;					// create servo object to control a servo 
+//Servo chan3servo;					// create servo object to control a servo 
 
 int loop_cnt=0;
 
@@ -188,7 +150,9 @@ int loop_cnt=0;
 ///////////////////////* Touchscreen Configuration *////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-char* radiostatus = "...";
+// For better pressure precision, we need to know the resistance between X+ and X-
+// Use any multimeter to read it. Sample baseline is 300 ohms
+#define XR 500
 
 int menuScreens = 12;
 int displaygroup = 1;
@@ -338,10 +302,7 @@ float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
 uint16_t touchedY;
 uint16_t touchedX;
 
-// For better pressure precision, we need to know the resistance
-// between X+ and X- Use any multimeter to read it
-// For the one we're using, its 300 ohms across the X plate
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 500);			// Orig (XP, YP, XM, YM, 300)
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
 
 #define LCD_CS A3
 #define LCD_CD A2
@@ -411,6 +372,13 @@ long nexttx1time;
 int rx1ErrorCount = 0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
 int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
 
+int RSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
+int RSSIpin = 6;					// Arduino PWM Digital Pin used to read PWM signal from XBee Pin 6 RSSI 6 to 6 KISS
+unsigned long RSSIduration;			// Used to store Pulse Width from RSSIpin
+int xbRSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
+
+int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
+
 boolean rxDEBUG = false;			// Set to monitor invalid TX packets via Serial Monitor baud 115200
 boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor baud 115200
 
@@ -420,8 +388,41 @@ boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor 
 
 ArduinoNunchuk nunchuk = ArduinoNunchuk();
 
+int buttonval;
+
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 byte triggeritem;
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+unsigned int rxVCC;
+unsigned int rxVCA;
+
+float dmmVCC;						// Display variable for Voltage from Receiver
+float dmmVCA;						// Display variable for Amperage from Receiver
+
+float previousdmmVCC = 00.0;
+float previousdmmVCA = 00.0;
+
+unsigned char telemetryVCCMSB = 0;
+unsigned char telemetryVCCLSB = 0;
+unsigned char telemetryVCAMSB = 0;
+unsigned char telemetryVCALSB = 0;
+
+float yellowVCC = 12.0;				// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
+float redVCC = 11.5;
+
+float yellowVCA = 50.0;				// If current goes ABOVE these thresholds, text will turn yellow then red.
+float redVCA = 65.0;
+
+long lastStatusBarUpdate = 0;
+long nextStatusBarUpdate = 0;
+
+int updateSTATUSdelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
+
+int ProcessStateIndicator = 0;		// Alternates between 0 & 1 High
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
