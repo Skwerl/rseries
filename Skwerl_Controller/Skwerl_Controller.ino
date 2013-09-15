@@ -190,7 +190,7 @@ int loop_cnt=0;
 
 char* radiostatus = "...";
 
-int menuScreens = 10;
+int menuScreens = 12;
 int displaygroup = 1;
 int displayitem = 1;
 int scrollymin = 23;
@@ -207,21 +207,105 @@ int scrollyloc = 23;
 //
 //							"12345678901234567890"	// This is just a sample of max length of 20 for TextSize=2
 char* menuItem[] =		{   "1234567890123",		// DO NOT CHANGE or REMOVE this is Item 0
-							"Alarm 1",
+
+							"Alarm 1",				// Page 1
 							"Alarm 2",
 							"Cantina Song",
 							"Doot Doot",
 							"Failure",
 							"Humming",
 							"Leia Message",
-							"Patrol",
+							"Patrol",				// Page 2
 							"Scream 1",
 							"Scream 2",
 							"Scream 3",
 							"Scream 4",
 							"Processing",
 							"Short Circuit",
-							"Startup Sound"
+							"Startup Sound",		// Page 3
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item",
+							"Item"
+
 						};
 
 int itemsel;
@@ -234,7 +318,7 @@ int VCCvalue = 0;       // used to hold the analog value coming out of the volta
 float vin = 0.0;        // voltage calulcated... since the divider allows for 15 volts
 
 float vinSTRONG=3.4;    // If vin is above vinSTRONG display GREEN battery
-float vinWEAK=2.9;       // if vin is above vinWEAK display YELLOW otherwise display RED
+float vinWEAK=2.9;		// if vin is above vinWEAK display YELLOW otherwise display RED
 float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
 
 						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
@@ -251,16 +335,13 @@ float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
 
 #define rotation 3		// Which only changes the orientation of the LCD not the touch screen
 
-//#define MINPRESSURE 10		// REMOVE??
-//#define MAXPRESSURE 1000		// REMOVE??
-
 uint16_t touchedY;
 uint16_t touchedX;
 
 // For better pressure precision, we need to know the resistance
 // between X+ and X- Use any multimeter to read it
 // For the one we're using, its 300 ohms across the X plate
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);			// Orig (XP, YP, XM, YM, 300)
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, 500);			// Orig (XP, YP, XM, YM, 300)
 
 #define LCD_CS A3
 #define LCD_CD A2
@@ -312,15 +393,6 @@ uint8_t opCmd[] = {'O','P'};
 AtCommandRequest atRequest = AtCommandRequest(opCmd);
 AtCommandResponse atResponse = AtCommandResponse();
 
-long rx1DBm;
-
-long lastrx1time;
-
-long lasttx1time;
-long nexttx1time;
-
-int t =0;
-
 boolean presstocontinue=false;
 boolean controllerstatus=false;	
 boolean transmitterstatus=false;	
@@ -331,11 +403,16 @@ boolean rxpacketvalid=false;
 boolean rxpacketstart=false;
 boolean txbegin=false;
 
-int rx1ErrorCount=0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
+int t = 0;
+long rx1DBm;
+long lastrx1time;
+long lasttx1time;
+long nexttx1time;
+int rx1ErrorCount = 0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
 int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
 
-boolean rxDEBUG=true;				// Set to monitor invalid TX packets via Serial Monitor baud 115200
-boolean txDEBUG=true;				// Set to monitor sent TX packets via Serial Monitor baud 115200
+boolean rxDEBUG = false;			// Set to monitor invalid TX packets via Serial Monitor baud 115200
+boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor baud 115200
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Wii Nunchuk Configuration *////////////////////////////////////////////////
@@ -412,71 +489,57 @@ void setup() {
 }
 
 void loop() {
- RXdata();
 
-//int xbstat = msr.getStatus(); 
- 
- nunchuk.update();                // ALL data from nunchuk is continually sent to Receiver
-          joyx = map(nunchuk.analogX, chan1Min, chan1Max, 60, 120); // Channel 1 joyx & Channel 2 joyy from NunChuck Joystick
-          joyy = map(nunchuk.analogY, chan2Min, chan2Max, 120, 60); // Map it to Min & Max of each channel
-          accx = nunchuk.accelX/2/2; // ranges from approx 70 - 182
-          accy = nunchuk.accelZ/2/2; // ranges from approx 65 - 173
-          accz = nunchuk.accelY/2/2; // ranges from approx 65 - 173
-          zbut = nunchuk.zButton; // either 0 or 1
-          cbut = nunchuk.cButton; // either 0 or 1
-          // Switched Z & Y on purpose. Now: X = left/right, Y = up/down, Z = forward/back.
-      
-      /*
-        Serial.print("joyx: "); Serial.print((byte)joyx,DEC);          // DEBUG CODE
-        Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);        // DEBUG CODE
-        Serial.print("\taccx: "); Serial.print((byte)accx,DEC);        // DEBUG CODE
-        Serial.print("\taccy: "); Serial.print((byte)accy,DEC);        // DEBUG CODE
-        Serial.print("\taccz: "); Serial.print((byte)accz,DEC);        // DEBUG CODE
-        Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);        // DEBUG CODE
-        Serial.print("\tcbut: "); Serial.println((byte)cbut,DEC);      // DEBUG CODE
-       */ 
-        
-                                               // Left & Right w Proporational Speed
-  if (joyx < 82) {joyx = joyx;}                // Emulate Dead Stick Zone on joyx
-    else if (joyx > 98) {joyx = joyx;}
-    else joyx = 90;                                           
-                                               // Forward & Reverse w Proporational Speed
-  if (joyy < 82) {joyy = joyy;}                // Emulate Dead Stick Zone on joyx
-    else if (joyy > 98) {joyy = joyy;}
-    else joyy = 90;                                           
+	RXdata();
+		
+	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
+	joyx = map(nunchuk.analogX, chan1Min, chan1Max, 60, 120);	// Channel 1 joyx & Channel 2 joyy from NunChuck Joystick
+	joyy = map(nunchuk.analogY, chan2Min, chan2Max, 120, 60);	// Map it to Min & Max of each channel
+	accx = nunchuk.accelX/2/2;									// ranges from approx 70 - 182
+	accy = nunchuk.accelZ/2/2;									// ranges from approx 65 - 173
+	accz = nunchuk.accelY/2/2;									// ranges from approx 65 - 173
+	zbut = nunchuk.zButton;										// either 0 or 1
+	cbut = nunchuk.cButton;										// either 0 or 1
+																// Switched Z & Y on purpose. Now: X = left/right, Y = up/down, Z = forward/back.
+	
+	/*
+	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);		// DEBUG CODE
+	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);		// DEBUG CODE
+	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);		// DEBUG CODE
+	Serial.print("\taccy: "); Serial.print((byte)accy,DEC);		// DEBUG CODE
+	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);		// DEBUG CODE
+	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);		// DEBUG CODE
+	Serial.print("\tcbut: "); Serial.println((byte)cbut,DEC);	// DEBUG CODE
+	*/ 
+	
+	// Normalize, emulate "dead stick" zones...
+	
+	if (joyx < 82) { joyx = joyx; }
+	else if (joyx > 98) { joyx = joyx; }
+	else { joyx = 90; }
 
+	if (joyy < 82) { joyy = joyy; }
+	else if (joyy > 98) { joyy = joyy; }
+	else { joyy = 90; }
+	
+	if (accx < 90) { accx = 60; }
+	else if (accx > 160) { accx = 120; }
+	else { accx = 90; }
 
-                                                // Dome Rotation & Dome FX                                           
-  if (accx < 90) {accx = 60;}                   // Emulate Dead Stick Zone on accx
-    else if (accx > 160) {accx = 120;}          // If you need to reverse the dome rotation... see receiver code
-    else accx = 90;                                           
+	if (zbut == 1 && cbut == 0) { triggeritem = 101; TXdata(); }
+	else if (zbut == 0 && cbut == 1) {triggeritem = 102; TXdata(); }
+	else if (zbut == 1 && cbut == 1) {triggeritem = 103; TXdata(); }
+	
+	getTouch();
+	
+	TXdata();
+	delay(100);
+	displaySendclear();
+	
+	if (millis() >= nextStatusBarUpdate) {
+		updateSTATUSbar(BLUE);
+	}
 
-//                                      // Nunchuck Buttons & Screen Update and TX
-  if (zbut == 1 && cbut == 0) {triggeritem = 101; TXdata();}
-    else if (zbut == 0 && cbut == 1) {triggeritem = 102; TXdata();}
-    else if (zbut == 1 && cbut == 1) {triggeritem = 103; TXdata();}
-
-//Serial.print("In LOOP triggeritem = : "); Serial.println((byte)triggeritem,DEC);      // DEBUG CODE
-
-
-  getTouch();                         // Check for TFT Touchscreen Input & Decode,Store triggers
-                                      // in triggeritem, if scroll arrows, display new OPTIONS screen
-  
-  TXdata();                           // Transmit Data
-
-
-  delay(100);                         // Give it time to transmit 
-  displaySendclear();
-//  tft.fillRect(80, 21, 220, 17, BLACK);// Clear Trigger Message
-//  triggeritem=0;                       // Zero out selection variables
-//  zbut=0;
-//  cbut=0;
-//  itemsel = 0;
-  
-  if (millis() >= nextStatusBarUpdate) {
-//    displaySTATUS(BLUE);
-    updateSTATUSbar(BLUE);            // Updates the STATUS bar
-  }
 }
 
 void getTouch() {                     //
@@ -570,12 +633,12 @@ void getTouch() {                     //
       
       if (touchedY >=180 && touchedX < 60) {    // Down Arrow Pressed?
         displaygroup = displaygroup + 1;         // increase displaygroup
-        if (displaygroup > 12) {                // unless displaygroup now >=12
+        if (displaygroup > menuScreens) {                // unless displaygroup now >=12
           displaygroup = 1;                     // in which case setup everything to
           displayitem = 1;                      // display group 11 & start with item 78
           scrollyloc = scrollymin;               // set scroll indicator to bottom scroll location
         }
-        else if (displaygroup <13) {                  // So we are good to 
+        else if (displaygroup < menuScreens) {                  // So we are good to 
           displayitem = displaygroup * 7 - 6;    // Since we can only display 7 items with TextSize=3
           scrollyloc = scrollyloc + scrollyinc;  // move scroll indicator loc by adding increment to location
         }
@@ -819,8 +882,6 @@ void displayOPTIONS() {                  // Display Event Trigger Options
   tft.setCursor(35, 128);
     
   tft.println(displaygroup);
-//  tft.setCursor(42, 128);
-//  tft.println("/9");
  
   tft.fillRect(69, 38, 241, 202, BLACK); // Clear options, leave scroll bar
 
@@ -829,7 +890,6 @@ void displayOPTIONS() {                  // Display Event Trigger Options
   tft.setTextColor(optionCOLOR);
   tft.setTextSize(3);                    // More usable than 2
   int yTextSizeoffset= 29;               // 20 if TextSize =2, 29 if TextSize=3  
-
 
   tft.setCursor(xoffset, yoffset);
   tft.println(menuItem[displayitem]);    // Item 1
