@@ -188,6 +188,9 @@ int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set
 
 long lastTriggerEventTime = millis(); 
 
+String targetNetwork = String('0013232844265');
+String connectedNetwork;
+
 // Define TFT LCD Screen Stuff
 
 int menuScreens = 10;
@@ -1053,44 +1056,12 @@ void displayPOST() {									// Power Up Self Test and Init
 
 	tft.setCursor(20,60);
 	tft.setTextColor(GREEN);
-	tft.println("Network:");
-	tft.setCursor(220,60);
-	tft.setTextColor(RED);
-	tft.println("...");
-
-	while(networkstatus == false) {
-		atRequest.setCommand(opCmd);  
-		xbee.send(atRequest);
-		if (xbee.readPacket(5000)) {
-			xbee.getResponse().getAtCommandResponse(atResponse);			
-			if (atResponse.isOk()) {
-				if (atResponse.getValueLength() > 0) {
-					Serial.print("Command value: ");
-					for (int i = 0; i < atResponse.getValueLength(); i++) {
-						Serial.print(atResponse.getValue()[i], HEX);
-						Serial.print(" ");
-					}
-					Serial.println("");
-					networkstatus = true;
-				}
-			}
-		}
-	}
-	
-	tft.fillRect(220, 60, 100, 17, BLACK);
-	tft.setCursor(220,60);
-	tft.setTextColor(BLUE);
-	tft.println("Skip");  
-
-	tft.setCursor(20,80);
-	tft.setTextColor(GREEN);
 	tft.println("Receiver:");
-	tft.setCursor(220,80);
+	tft.setCursor(220,60);
 	tft.setTextColor(RED);
 	tft.println("Pinging");
 
 	while(receiverstatus == false) {
-
 		payload[0] = byte(0x90);						// joyx
 		payload[1] = byte(0x90);						// joyy
 		payload[2] = byte(0x90);						// accx
@@ -1101,30 +1072,34 @@ void displayPOST() {									// Power Up Self Test and Init
 		payload[7] = byte(0x00);						// TriggerEvent
 		payload[8] = byte(0x00);						// Future Use
 		xbee.send(zbTx);								// Send a Test Payload to Receiver
-
 		Serial.println("Sending test payload...");		// DEBUG CODE
-
-
-		xbee.readPacket(500);							// Wait 500msec to see if we got a response back
-		if (xbee.getResponse().isAvailable()) {
-			receiverstatus = true;
+		if (xbee.readPacket(500)) {
+			if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
+				xbee.getResponse().getZBTxStatusResponse(txStatus);
+				if (txStatus.getDeliveryStatus() == SUCCESS) {
+					receiverstatus = true;
+				} else {
+					// Packet not received...
+				}
+			}
+		} else if (xbee.getResponse().isError()) {
+			// Error reading packet...
+		} else {
+			// TX status timeout...
 		}
-		//delay(100);
-		delay(1500);
+		delay(1000);
 	}
-	
 	Serial.println("Receiver Responded, Status Good");   // DEBUG CODE
-	
-	tft.fillRect(220, 80, 100, 17, BLACK);
-	tft.setCursor(220,80);
+	tft.fillRect(220, 60, 100, 17, BLACK);
+	tft.setCursor(220,60);
 	tft.setTextColor(GREEN);
 	tft.println("OK!");  
-	
+
 	// Looking for the Volts & Amperage from Receiver (Router)
 	tft.setTextColor(GREEN);
-	tft.setCursor(20,100);
+	tft.setCursor(20,80);
 	tft.println("Telemetry:");
-	tft.setCursor(220,100);
+	tft.setCursor(220,80);
 	tft.setTextColor(RED);
 	tft.println("...");
 	
@@ -1139,8 +1114,8 @@ void displayPOST() {									// Power Up Self Test and Init
 		telemetrystatus = true;							// Screw it...
 	}
 	
-	tft.fillRect(220, 100, 100, 17, BLACK);// Clear Waiting Message
-	tft.setCursor(220,100);
+	tft.fillRect(220, 80, 100, 17, BLACK);// Clear Waiting Message
+	tft.setCursor(220,80);
 	tft.setTextColor(BLUE);
 	tft.println("Skip");  
 	
