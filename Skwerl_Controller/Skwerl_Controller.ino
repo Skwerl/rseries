@@ -480,9 +480,12 @@ void setup() {
 	tft.fillScreen(BLACK);
 	
 	//  Serial.println("Display Status with BLUE");		// DEBUG CODE
-	displaySTATUS(BLUE);								// Displays status bar at TOP
-	displaySCROLL();									// Displays scroll buttons
-	displayOPTIONS();									// Display trigger Options
+	displaySTATUS(WHITE);								// Displays status bar at TOP
+	//displaySCROLL();									// Displays scroll buttons
+	//displayOPTIONS();									// Display trigger Options
+
+	displayGrid();
+
 	t=0;
 	//  pinMode(RSSIpin, INPUT);						// Setup RSSIpin as Digital Input for 
 	//  nextrx1time = millis();							// 
@@ -511,7 +514,7 @@ void loop() {
 	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);		// DEBUG CODE
 	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);		// DEBUG CODE
 	Serial.print("\tcbut: "); Serial.println((byte)cbut,DEC);	// DEBUG CODE
-	*/ 
+	*/
 	
 	// Normalize, emulate "dead stick" zones...
 	
@@ -649,143 +652,147 @@ void getTouch() {                     //
   }                                              // Finished with Touch Pressure
 }
 
-void displaySCROLL() {                // Display Scroll Buttons
-  tft.drawTriangle(30, 40,            // Up Scroll Button
-                    0, 100,
-                   60,100, BLUE); 
-  tft.setCursor(20, 80);
+void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
+  tft.setCursor(40, 80);
   tft.setTextColor(WHITE);
+  tft.setTextSize(3);
+  tft.println("R2-D2");
+  tft.setCursor(60,110);
+  tft.println("Controller");
+  tft.setCursor(130,140);
   tft.setTextSize(2);
-  tft.println("UP");
-
-  tft.drawTriangle(0, 175,              // Down Scroll Button
-                  60, 175,
-                  30, 235, BLUE); 
-
-  tft.setCursor(20, 180);
-  tft.setTextColor(WHITE);
+  tft.println(VERSION);
+  tft.setTextColor(BLUE);
   tft.setTextSize(2);
-  tft.println("DN");
-
+  tft.drawFastHLine(0,0, tft.width(), BLUE);
+  tft.drawFastHLine(0,10, tft.width(), BLUE);
+  tft.setCursor(20,170);
+  tft.println("Skwerl's Fork");							// No vanity here... :-)
+  tft.setCursor(20,190);
+  tft.println("Royal Engineers of Naboo");				// Need to make it look like SW Canon
+  tft.drawFastHLine(0, 229, tft.width(), BLUE); 
+  tft.drawFastHLine(0, 239, tft.width(), BLUE);   
 }
 
-void displaySTATUS(uint16_t color) {          // This builds the status line at top of display when in normal operation on the controller
-//  tft.setRotation(rotation); 
-//  tft.fillScreen(BLACK);
-  tft.setCursor(0, 0);
-  tft.setTextColor(color);
-  tft.setTextSize(2);
-  tft.println(astromechName);
-  displayBATT();
-  displayRSSI();
-  tft.setCursor(128, 0);
-  if (radiostatus == "OK") {
-    tft.setTextColor(GREEN);
-  } else {
-    tft.setTextColor(RED);
-  }
-  tft.println(radiostatus);
-  
-  
- if (ProcessStateIndicator == 0) {  // Display a ball heart beat in between Radio Status & dmmVCC
-    tft.fillCircle(160,7, 5, BLUE);          
-    ProcessStateIndicator = 1;
-  } else {
-    tft.fillCircle(160,7, 5, RED);
-    ProcessStateIndicator = 0;
-  }
-  
-  tft.setCursor(170, 0);
-  
-  tft.setTextColor(GREEN);    // Default dmmVCC text color
-  if (dmmVCC <= yellowVCC){    // If dmmVCC drops BELOW, change text to YELLOW or RED
-    tft.setTextColor(YELLOW);}
-  if (dmmVCC <= redVCC){
-   tft.setTextColor(RED);}
-   
-  tft.setTextSize(2);
-  tft.println(dmmVCC,2);      // Display dmmVCC FLOAT 2 Places
-  tft.setCursor(230, 0);
-  tft.println("V");
-  
-  tft.setTextColor(GREEN);    // Default dmmVCA text color
-  if (dmmVCA >= yellowVCA){    // If dmmVCA goes ABOVE, change text to YELLOW or RED
-    tft.setTextColor(YELLOW);}
-  if (dmmVCA >= redVCA){
-    tft.setTextColor(RED);}
-   
-  tft.setCursor(250, 0);
-  tft.println(dmmVCC,2);      // Display dmmVCA FLOAT 2 Places
-  tft.setCursor(310, 0);
-  tft.println("A");
-   
-  tft.drawFastHLine(0, 19, tft.width(), BLUE);
-  
-  lastStatusBarUpdate = millis();        // Could remove this one now..
-  nextStatusBarUpdate = millis() + updateSTATUSdelay; // Update Status Bar on Display every X + millis();
-  
+void displaySTATUS(uint16_t color) {
+
+	tft.setCursor(0, 0);
+	tft.setTextColor(color);
+	tft.setTextSize(2);
+	tft.println(astromechName);
+	displayBATT();
+	displayRSSI();
+	tft.setCursor(128, 0);
+	if (radiostatus == "OK") {
+		tft.setTextColor(GREEN);
+	} else {
+		tft.setTextColor(RED);
+	}
+	tft.println(radiostatus);
+	
+	if (ProcessStateIndicator == 0) {		// Display a ball heart beat in between Radio Status & dmmVCC
+		tft.fillCircle(160,7, 5, BLUE);          
+		ProcessStateIndicator = 1;
+	} else {
+		tft.fillCircle(160,7, 5, RED);
+		ProcessStateIndicator = 0;
+	}
+	
+	tft.setCursor(170, 0);
+	
+	tft.setTextColor(GREEN);				// Default dmmVCC text color
+	if (dmmVCC <= yellowVCC) {				// If dmmVCC drops BELOW, change text to YELLOW or RED
+		tft.setTextColor(YELLOW);
+	}
+	if (dmmVCC <= redVCC) {
+		tft.setTextColor(RED);
+	}
+	
+	tft.setTextSize(2);
+	tft.println(dmmVCC,2);					// Display dmmVCC FLOAT 2 Places
+	tft.setCursor(230, 0);
+	tft.println("V");
+	
+	tft.setTextColor(GREEN);				// Default dmmVCA text color
+	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
+		tft.setTextColor(YELLOW);
+	}
+	if (dmmVCA >= redVCA) {
+		tft.setTextColor(RED);
+	}
+	
+	tft.setCursor(250, 0);
+	tft.println(dmmVCC,2);					// Display dmmVCA FLOAT 2 Places
+	tft.setCursor(310, 0);
+	tft.println("A");
+	
+	tft.drawFastHLine(0, 19, tft.width(), color);
+	
+	lastStatusBarUpdate = millis();			// Could remove this one now..
+	nextStatusBarUpdate = millis() + updateSTATUSdelay;
+
 }
 
 void updateSTATUSbar(uint16_t color) {
 
-  tft.setTextSize(2);
-  displayBATT();
-  displayRSSI();
-  tft.setCursor(128, 0);
-  
-  if (rx1ErrorCount <= 5 && radiostatus == "OK") {   // rx1ErrorCount & radiostatus error conditions GREEN OK
-    tft.setTextColor(GREEN);
-  } else if (rx1ErrorCount >5 && radiostatus == "OK") {  // Caution YELLOW OK
-    tft.setTextColor(YELLOW);
-  } else if (rx1ErrorCount >5 && radiostatus != "OK") {  // DANGER RED ERROR CONDITION
-    tft.setTextColor(RED);
-  }
-    
-  
-  tft.println(radiostatus);          // Display the OK or RX or TX radio controll status.
- 
-  
-  if (ProcessStateIndicator == 0) {  // Display a ball heart beat in between Radio Status & dmmVCC
-    tft.fillCircle(160,7, 5, BLUE);          
-    ProcessStateIndicator = 1;
-  } else {
-    tft.fillCircle(160,7, 5, RED);
-    ProcessStateIndicator = 0;
-  }
-  
-  tft.setCursor(170, 0);
-  
-  tft.fillRect(170, 0, 59, 17, BLACK);
-  
-  tft.setTextColor(GREEN);    // Default dmmVCC text color
-  if (dmmVCC <= yellowVCC){    // If dmmVCC drops BELOW, change text to YELLOW or RED
-    tft.setTextColor(YELLOW);}
-  if (dmmVCC <= redVCC){
-   tft.setTextColor(RED);}
-     
-  tft.setTextSize(2);
-  tft.println(dmmVCC,2);      // Display dmmVCA FLOAT 2 Places
-  tft.setCursor(230, 0);
-  tft.println("V");
-  
-  tft.setTextColor(GREEN);    // Default dmmVCA text color
-  if (dmmVCA >= yellowVCA){    // If dmmVCA goes ABOVE, change text to YELLOW or RED
-    tft.setTextColor(YELLOW);}
-  if (dmmVCA >= redVCA){
-    tft.setTextColor(RED);}
-  
-  tft.fillRect(250, 0, 59, 17, BLACK);
- 
-  tft.setCursor(250, 0);
-  tft.println(dmmVCA,2);      // Display dmmVCA FLOAT 2 Places
-  tft.setCursor(310, 0);
-  tft.println("A");
-   
-//  tft.drawFastHLine(0, 19, tft.width(), BLUE);  // we should be able remove this from here
-  
-//  lastStatusBarUpdate = millis();        // can remove this one now..
-  nextStatusBarUpdate = millis() + updateSTATUSdelay; // Update Status Bar on Display every X + millis();
-  
+	tft.setTextSize(2);
+	displayBATT();
+	displayRSSI();
+	tft.setCursor(128, 0);
+	
+	if (rx1ErrorCount <= 5 && radiostatus == "OK") {
+		tft.setTextColor(GREEN);
+	} else if (rx1ErrorCount >5 && radiostatus == "OK") {
+		tft.setTextColor(YELLOW);
+	} else if (rx1ErrorCount >5 && radiostatus != "OK") {
+		tft.setTextColor(RED);
+	}
+	
+	tft.println(radiostatus);				// Display the OK or RX or TX radio controll status.
+	
+	if (ProcessStateIndicator == 0) {		// Display a ball heart beat in between Radio Status & dmmVCC
+		tft.fillCircle(160,7, 5, BLUE);          
+		ProcessStateIndicator = 1;
+	} else {
+		tft.fillCircle(160,7, 5, RED);
+		ProcessStateIndicator = 0;
+	}
+	
+	tft.setCursor(170, 0);
+	
+	tft.fillRect(170, 0, 59, 17, BLACK);
+	
+	tft.setTextColor(GREEN);				// Default dmmVCC text color
+	if (dmmVCC <= yellowVCC) {				// If dmmVCC drops BELOW, change text to YELLOW or RED
+		tft.setTextColor(YELLOW);
+	}
+	if (dmmVCC <= redVCC) {
+		tft.setTextColor(RED);
+	}
+	
+	tft.setTextSize(2);
+	tft.println(dmmVCC,2);					// Display dmmVCA FLOAT 2 Places
+	tft.setCursor(230, 0);
+	tft.println("V");
+	
+	tft.setTextColor(GREEN);				// Default dmmVCA text color
+	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
+		tft.setTextColor(YELLOW);
+	}
+	if (dmmVCA >= redVCA) {
+		tft.setTextColor(RED);
+	}
+	
+	tft.fillRect(250, 0, 59, 17, BLACK);
+	
+	tft.setCursor(250, 0);
+	tft.println(dmmVCA,2);					// Display dmmVCA FLOAT 2 Places
+	tft.setCursor(310, 0);
+	tft.println("A");
+
+	// lastStatusBarUpdate = millis();		// can remove this one now..
+	nextStatusBarUpdate = millis() + updateSTATUSdelay;
+	
 }
 
 void displayRSSI() {                        // Display Received packet Signal Strength Indicator
@@ -862,15 +869,90 @@ RSSIduration = rx16.getRssi();
   }
   }
 
+void displayGrid() {
+
+	int i;
+	int xOffset = 0;
+	int yOffset = 30;
+	int boxWidth = 100;
+	int boxHeight = 52;
+	int boxMargin = 10;
+	int boxesPerRow = 3;
+	int rowsPerPage = 3;	
+	int colIndex = 1;
+	
+	char* gridTriggers[] = {
+		"Item 1",
+		"Item 2",	
+		"Item 3",
+		"Item 4",
+		"Item 5",
+		"Item 6",
+		"Item 7",
+		"Item 8",
+		"***END***" // Ignore
+	};
+
+	// Render Pagination
+	tft.fillRect(0, 220, 130, 20, WHITE);
+	tft.fillRect(190, 220, 130, 20, WHITE);
+	tft.fillTriangle(5,230, 25,225, 25,235, BLACK);
+	tft.fillTriangle(315,230, 295,225, 295,235, BLACK);
+	tft.setCursor(150, 222);
+	tft.setTextColor(WHITE);
+	tft.setTextSize(2);
+	tft.println("01");
+
+	for (i=0; i<(sizeof(gridTriggers)/sizeof(char))-1; i++) {
+
+		if (gridTriggers[i] == "***END***") { break; }
+
+		xOffset = (colIndex-1)*(boxMargin+boxWidth);
+
+		tft.fillRect(xOffset, yOffset, boxWidth, boxHeight, GRAY);
+		
+		Serial.print("Trigger: ");
+		Serial.println(gridTriggers[i]);
+
+		colIndex++;
+		if (colIndex > boxesPerRow) {
+			colIndex = 1;
+			yOffset = yOffset+boxMargin+boxHeight;
+		}
+
+	}
+
+}
+
+void displaySCROLL() {
+
 /*
-tft.fillCircle(10,10, 1, BLUE);             // Signal =1 
-tft.fillCircle(15,10, 2, BLUE);             // Signal =2
-tft.fillCircle(22,10, 3, BLUE);             // Signal =3
-tft.fillCircle(31,10, 4, BLUE);             // Signal =4
-tft.fillCircle(42,10, 5, GRAY);             // Signal =5
+
+// Display Scroll Buttons
+  tft.drawTriangle(30, 40,            // Up Scroll Button
+                    0, 100,
+                   60,100, BLUE); 
+  tft.setCursor(20, 80);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(2);
+  tft.println("UP");
+
+  tft.drawTriangle(0, 175,              // Down Scroll Button
+                  60, 175,
+                  30, 235, BLUE); 
+
+  tft.setCursor(20, 180);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(2);
+  tft.println("DN");
+
 */
 
+}
+
 void displayOPTIONS() {                  // Display Event Trigger Options 
+
+/*
 
   tft.fillRect(0, 21, 310, 17, BLACK);   // Clear Message Area and leave scroll indicator
 
@@ -916,31 +998,14 @@ void displayOPTIONS() {                  // Display Event Trigger Options
   tft.fillRect(315, 23, 4, 216, BLACK);       // draw scroll indicator  
   tft.drawRect(314, 22, 6, 218, WHITE);       // draws outline of the scroll bar
   tft.fillRect(315, scrollyloc, 4, 15, BLUE); // draw scroll indicator
-}
-
-void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
-  tft.setCursor(40, 80);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(3);
-  tft.println("R2-D2");
-  tft.setCursor(60,110);
-  tft.println("Controller");
-  tft.setCursor(130,140);
-  tft.setTextSize(2);
-  tft.println(VERSION);
-  tft.setTextColor(BLUE);
-  tft.setTextSize(2);
-  tft.drawFastHLine(0,0, tft.width(), BLUE);
-  tft.drawFastHLine(0,10, tft.width(), BLUE);
-  tft.setCursor(20,170);
-  tft.println("Skwerl's Fork");							// No vanity here... :-)
-  tft.setCursor(20,190);
-  tft.println("Royal Engineers of Naboo");				// Need to make it look like SW Canon
-  tft.drawFastHLine(0, 229, tft.width(), BLUE); 
-  tft.drawFastHLine(0, 239, tft.width(), BLUE);   
+  
+  */
+  
 }
 
 void sendtrigger() {                          // We need to see how long since we last sent a trigger event
+
+/*
                                               // Would like to keep to many events happening, so about 100ms
 Serial.println("Arrived at sendtrigger");            // DEBUG CODE
 
@@ -961,15 +1026,17 @@ Serial.println("Arrived at sendtrigger");            // DEBUG CODE
   tft.println(int(triggeritem)); // using INT to make the byte readable on the display as a number vs a single byte
   
   Serial.print("SENDING triggeritem = ");Serial.println(triggeritem);             // DEBUG CODE
- 
+ */
 }
 
 void displaySendclear() {
-	tft.fillRect(80, 21, 220, 17, BLACK);		// Clear Trigger Message
+
+//	tft.fillRect(80, 21, 220, 17, BLACK);		// Clear Trigger Message
 	triggeritem=0;								// Zero out selection variables
 	zbut=0;
 	cbut=0;
 	itemsel = 0;
+
 }
 
 void displayPOST() {									// Power Up Self Test and Init
