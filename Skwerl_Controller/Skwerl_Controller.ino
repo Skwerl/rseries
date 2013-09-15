@@ -1,30 +1,17 @@
-#define astromechName "R2-D2"
-#define VERSION "Forked 0.4.5"
-#define OWNER "Skwerl"
+/*
+ * Astromech RSeries Controller for the R2 Builders Club
+ * Skwerl's Fork 
+ *  
+ * Heavily based on Michael Erwin's
+ * RSeries Open Controller Project
+ * http://code.google.com/p/rseries-open-control/
+ *
+ * Requires Arduino 1.0 IDE
+ *
+*/
 
 /* 
 
-	 Revision History
-	
-	 v.0.4.5 - Fixing all the things broken by Adafruit GFX & Adafruit_TFTLCD
-	 v.0.4.4 - Adjusted for new adafruitGFX https://github.com/adafruit/Adafruit-GFX-Library 
-			   & adafruitTFTLCD https://github.com/adafruit/TFTLCD-Library
-	 v.0.4.3 - CVI Code Release - BETA
-	 v.0.4.2 - adjusted getVCC & parameter
-	 v.0.4.1 - Adjusted dome code to be much slower & reversed, adjusted VCC monitoring values
-	 v.0.4.0 - Started to update to handle Servo FX Modules
-	 v.0.3.9 - Updated configuration of AudioFX1 & AudioFX2, Added DroidRACEmode, included project page link, cleaned up splash screen
-	 v.0.3.8 - Added local Controller Shield battery monitor & display based on vinSTRONG & vinWEAK
-	 v.0.3.7 - Updated I2C Module Code to work with Arduino IDE 1.0
-	 v.0.3.6 - Need to have enough delay in between sending the packet and receiving a telemetry packet.
-	 v.0.3.5 - Code performance
-	 v.0.3.4 - Increased Xbee baud rate to 19200, cleaned up XBee TX Response code - Tested with Receiver v019
-	 v.0.3.3 - triggeritem is now sent as 2 bytes, reduced payload to 9 bytes
-	 v.0.3.2 - Telemetry data is now 4 bytes: 0 & 1= rxVCC, 2 & 3=rxVCA 
-	 v.0.3.1 - Removed Touchscreen POST code, built Controller_TouchScreenDebuger, Code Clean up continues
-	 v.0.3.0 - Arduino 1.0 IDE Support & updated to new ArduinoNunchuck library
-	 v.0.2.9 - Initial Wide Beta Test Release
-	 
 	The goal of this sketch is to help develop a new wireless, touchscreen,
 	R-Series Astromech Controller & Tranceiver system platform for the
 	R2 Builders Club.
@@ -82,6 +69,18 @@
 
 */
 
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Global Config *////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+#define astromechName "R2-D2"
+#define VERSION "Forked 0.4.5"
+#define OWNER "Skwerl"
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Libraries *////////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
 #include <Arduino.h>
 #include <Adafruit_GFX.h>       // Core graphics library
 #include <Adafruit_TFTLCD.h>    // Hardware-specific library
@@ -91,57 +90,10 @@
 #include <Wire.h>               // Used to read the I2C data from Nunchuck - Arduino
 #include <ArduinoNunchuk.h>     // Arduino Nunchuk - Gabriel Bianconi @  http://www.gabrielbianconi.com/projects/arduinonunchuk/
 
-int xbeebps = 19200; // Bits Per Second (baud). Avoid 57600 Arduino UNO issue.
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* RSeries Configuration *////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-uint8_t payload[] = { '0', '0', '0', '0', '0', '0', '0', '0', '0'}; // Our XBee Payload of 9 potential values
-
-Rx16Response rx16 = Rx16Response();
-
-XBee xbee = XBee();
-XBeeResponse response = XBeeResponse();
-
-// Create reusable response objects for responses we expect to handle 
-ZBRxResponse rx = ZBRxResponse();
-ModemStatusResponse msr = ModemStatusResponse();
- 
-XBeeAddress64 addr64 = XBeeAddress64(0x0013a200, 0x40a8e65b);
-ZBTxRequest zbTx = ZBTxRequest(addr64, payload, sizeof(payload));
-ZBTxStatusResponse txStatus = ZBTxStatusResponse();
-
-uint8_t shCmd[] = {'S','H'};
-uint8_t slCmd[] = {'S','L'};
-uint8_t opCmd[] = {'O','P'};
-
-AtCommandRequest atRequest = AtCommandRequest(opCmd);
-AtCommandResponse atResponse = AtCommandResponse();
-
-long rx1DBm;
-
-long lastrx1time;
-
-long lasttx1time;
-long nexttx1time;
-
-int t =0;
-
-boolean presstocontinue=false;
-boolean controllerstatus=false;	
-boolean transmitterstatus=false;	
-boolean networkstatus=false;	
-boolean receiverstatus=false;	
-boolean telemetrystatus=false;	
-boolean rxpacketvalid=false;
-boolean rxpacketstart=false;
-boolean txbegin=false;
-
-int rx1ErrorCount=0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
-int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
-
-boolean rxDEBUG=true;				// Set to monitor invalid TX packets via Serial Monitor baud 115200
-boolean txDEBUG=true;				// Set to monitor sent TX packets via Serial Monitor baud 115200
-
-char* radiostatus = "--";			// This is used to hold display Status... if "OK" = Green else it used to display error code "XX" from Transmitter, and displays in RED
-char* previousradiostatus = "--";
 
 //byte rxArray1[60];				// Allows for 60 Bytes to be read at once
 									// XBee S2B only has room for about 100 packets of 54 bytes 
@@ -186,123 +138,7 @@ int xbRSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 
 
 int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
 
-long lastTriggerEventTime = millis(); 
-
-String targetNetwork = String('0013232844265');
-String connectedNetwork;
-
-// Define TFT LCD Screen Stuff
-
-int menuScreens = 10;
-int displaygroup = 1;
-int displayitem = 1;
-int scrollymin = 23;
-int scrollyinc = 16;
-int scrollymax = 167;
-int scrollyloc = 23;
-
-
-// Note: menu Item code = byte sent to RSeries Receiver sketch
-//       Triggering menuItem[42] will cause Byte equivelant of 42 to be sent, which is B00101010 
-//
-//       In future version this will move to a .txt file stored on micro-SD card
-//
-//       Keep Descriptions 13 Chars or less.
-//                   "12345678901234567890"   // This is just a sample of max length of 20 for TextSize=2
-//                                 <<<<<<<    // Max Length 13 if TextSize =3
-char* menuItem[]  = {"1234567890123",         // DO NOT CHANGE or REMOVE this is Item 0
-                     "Alarm Sequenc",         // Item 1
-                     "Leia HP Mesg",          // Item 2
-                     "Sys Failure",           // Item 3
-                     "Happy SFX",             // Item 4
-                     "Rnd Whistle",           // Item 5
-                     "Razzberry",             // Item 6
-                     "Annoyed",               // Item 7
-                     "Fire Extngshr",         // Item 8 DisplayGroup = 2
-                     "Dome Wave",             // Item 9 
-                     "Wolf Whistle",          // Item 10
-                     "Dance Cantina",         // Item 11
-                     "VADER!",                // Don't use 3 exclamation symbols ! with a MEGA 2560
-                     "C3PO",                  // Item 13   
-                     "Yoda",                  // Item 14 
-                     "Luke",                  // Item 15 DisplayGroup = 3 
-                     "Leia",                  // Item 16 
-                     "Han Solo",              // Item 17 - - Transmitted as Event 104 - WORKAROUND
-                     "Obi Wan",               // Item 18
-                     "Chewbacca",             // Item 19 - - Transmitted as Event 105 - WORKAROUND
-                     "Jawas",                 // Item 20
-                     "Anakin",                // Item 21
-                     "Jabba's Place",         // Item 22 DisplayGroup = 4
-                     "Ahsoka Tano",           // Item 23
-                     "Launch Saber",          // Item 24
-                     "CPU Arm Out",           // Item 25
-                     "CPU Arm In",            // Item 26
-                     "RACE Start",            // Item 27
-                     "RACE Stop",             // Item 28
-                     "Dome Wave",             // Item 29 DisplayGroup = 5
-                     "Dome All Open",         // Item 30
-                     "Dome Close",            // Item 31
-                     "Item 32",             // Item 32
-                     "Item 33",             // Item 33
-                     "Item 34",
-                     "Item 35",
-                     "Item 36",
-                     "Item 37",
-                     "Item 38",
-                     "Item 39",
-                     "Item 40", //Item 40
-                     "Item 41",
-                     "Item 42",
-                     "Item 43",
-                     "Item 44",
-                     "Item 45",
-                     "Item 46",
-                     "Item 47",
-                     "Item 48",
-                     "Item 49",
-                     "Item 50", //Item 50
-                     "Item 51",
-                     "Item 52",
-                     "Item 53",
-                     "Item 54",
-                     "Item 55",
-                     "Item 56",
-                     "Item 57",
-                     "Item 58",
-                     "Item 59",
-                     "Item 60", //Item 60
-                     "Item 61",
-                     "Item 62",
-                     "Item 63",
-                     "Item 64",
-                     "Item 65",
-                     "Item 66",
-                     "Item 67",
-                     "Item 68",
-                     "Item 69",
-                     "Item 70", //Item 70
-                     "Item 71",
-                     "Item 72",
-                     "Item 73",
-                     "Item 74",
-                     "Item 75",
-                     "Item 76",
-                     "Item 77",
-                     "Item 78",
-                     "Item 79", 
-                     "Item 80", //Item 80
-                     "Item 81",
-                     "Item 82",
-                     "Item 83",
-                     "Item 84", // Item 84, which is 12 Screen Limit... 
-                     "Item 85", // Remaining is for future use
-                     "Item 86", // future use
-                     "Item 87", // future use
-                     "Item 88", // future use
-                     "Item 89", // future use
-                     "Item 90"};// future use
-
-//int ledPin = 13;        // used to show activity
+long lastTriggerEventTime = millis();
 
 // Define which digital pins on the arduino are for servo data signals 
 //int servo1Pin = 6;    // Channel 1 - Left Right  
@@ -348,16 +184,45 @@ int chan3Max = 180;     // Channel 3 Max - Dome Rotation
 
 int loop_cnt=0;
 
-ArduinoNunchuk nunchuk = ArduinoNunchuk();
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Touchscreen Configuration *////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-byte joyx, joyy, accx, accy, accz, zbut, cbut;
+char* radiostatus = "...";
 
-byte triggeritem;
+int menuScreens = 10;
+int displaygroup = 1;
+int displayitem = 1;
+int scrollymin = 23;
+int scrollyinc = 16;
+int scrollymax = 167;
+int scrollyloc = 23;
 
-//byte triggeritemLSB;
-//byte triggeritemMSB;  
-
-boolean domerotation;
+//		Note: menu Item code = byte sent to RSeries Receiver sketch
+//		Triggering menuItem[42] will cause Byte equivelant of 42 to be sent, which is B00101010 
+//
+//		In future version this will move to a .txt file stored on micro-SD card
+//
+//		Keep Descriptions 13 Chars or less.
+//
+//							"12345678901234567890"	// This is just a sample of max length of 20 for TextSize=2
+char* menuItem[] =		{   "1234567890123",		// DO NOT CHANGE or REMOVE this is Item 0
+							"Alarm 1",
+							"Alarm 2",
+							"Cantina Song",
+							"Doot Doot",
+							"Failure",
+							"Humming",
+							"Leia Message",
+							"Patrol",
+							"Scream 1",
+							"Scream 2",
+							"Scream 3",
+							"Scream 4",
+							"Processing",
+							"Short Circuit",
+							"Startup Sound"
+						};
 
 int itemsel;
                         // Controller shield battery monitor variables
@@ -422,11 +287,68 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, 300);			// Orig (XP, YP, XM, YM, 30
 
 Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
-// Create a FastSerial driver that looks just like the stock Arduino
-// driver.
-//
-//FastSerialPort0(Serial);
-//FastSerialPort1(Serial1);
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int xbeebps = 19200;
+uint8_t payload[] = { '0', '0', '0', '0', '0', '0', '0', '0', '0'}; // Our XBee Payload of 9 potential values
+Rx16Response rx16 = Rx16Response();
+XBee xbee = XBee();
+XBeeResponse response = XBeeResponse();
+
+// Create reusable response objects for responses we expect to handle 
+ZBRxResponse rx = ZBRxResponse();
+ModemStatusResponse msr = ModemStatusResponse();
+ 
+XBeeAddress64 addr64 = XBeeAddress64(0x0013a200, 0x40a8e65b);
+ZBTxRequest zbTx = ZBTxRequest(addr64, payload, sizeof(payload));
+ZBTxStatusResponse txStatus = ZBTxStatusResponse();
+
+uint8_t shCmd[] = {'S','H'};
+uint8_t slCmd[] = {'S','L'};
+uint8_t opCmd[] = {'O','P'};
+
+AtCommandRequest atRequest = AtCommandRequest(opCmd);
+AtCommandResponse atResponse = AtCommandResponse();
+
+long rx1DBm;
+
+long lastrx1time;
+
+long lasttx1time;
+long nexttx1time;
+
+int t =0;
+
+boolean presstocontinue=false;
+boolean controllerstatus=false;	
+boolean transmitterstatus=false;	
+boolean networkstatus=false;	
+boolean receiverstatus=false;	
+boolean telemetrystatus=false;	
+boolean rxpacketvalid=false;
+boolean rxpacketstart=false;
+boolean txbegin=false;
+
+int rx1ErrorCount=0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
+int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
+
+boolean rxDEBUG=true;				// Set to monitor invalid TX packets via Serial Monitor baud 115200
+boolean txDEBUG=true;				// Set to monitor sent TX packets via Serial Monitor baud 115200
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Wii Nunchuk Configuration *////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+ArduinoNunchuk nunchuk = ArduinoNunchuk();
+
+byte joyx, joyy, accx, accy, accz, zbut, cbut;
+byte triggeritem;
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 void setup() {
 
@@ -439,6 +361,7 @@ void setup() {
 	pinMode(analogVCCinput, INPUT);
 	
 	tft.reset();										// A4 must be connected to TFT Break out Pin 7
+
 	// Prep debugger...
 	Serial.println(" ");
 	Serial.println(" ");
@@ -458,7 +381,6 @@ void setup() {
 	
 	tft.begin(identifier);
 	
-	//  tft.initDisplay(); 
 	tft.setRotation(rotation); 
 	tft.fillScreen(BLACK);
 	
@@ -490,7 +412,6 @@ void setup() {
 }
 
 void loop() {
- //previousradiostatus = radiostatus;
  RXdata();
 
 //int xbstat = msr.getStatus(); 
@@ -936,11 +857,7 @@ void displayOPTIONS() {                  // Display Event Trigger Options
   tft.fillRect(315, scrollyloc, 4, 15, BLUE); // draw scroll indicator
 }
 
-void displaySPLASH() {                        // Display a Retro SPLASH Title Screen!
-//  tft.setTextColor(WHITE);
-//  tft.setTextSize(3);
-//  tft.setCursor(40, 40);
-//  tft.println(OWNER);
+void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
   tft.setCursor(40, 80);
   tft.setTextColor(WHITE);
   tft.setTextSize(3);
@@ -955,9 +872,9 @@ void displaySPLASH() {                        // Display a Retro SPLASH Title Sc
   tft.drawFastHLine(0,0, tft.width(), BLUE);
   tft.drawFastHLine(0,10, tft.width(), BLUE);
   tft.setCursor(20,170);
-  tft.println("Skwerl's Fork");    // No vanity here... :-)
+  tft.println("Skwerl's Fork");							// No vanity here... :-)
   tft.setCursor(20,190);
-  tft.println("Royal Engineers of Naboo");    // Need to make it look like SW Canon
+  tft.println("Royal Engineers of Naboo");				// Need to make it look like SW Canon
   tft.drawFastHLine(0, 229, tft.width(), BLUE); 
   tft.drawFastHLine(0, 239, tft.width(), BLUE);   
 }
@@ -1185,37 +1102,18 @@ buf[3] = (byte) n >> 24;
   }
  }
 
-void TXdata() { // Build & TX Payload Packet
+void TXdata() {
 
-	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);                  // DEBUG CODE
-	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);                // DEBUG CODE
-	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);                // DEBUG CODE
-	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);                // DEBUG CODE
-	Serial.print("\tcbut: "); Serial.print((byte)cbut,DEC);                // DEBUG CODE
-	Serial.print("\ttrigeritem: "); Serial.println((byte)triggeritem,DEC); // DEBUG CODE
-	Serial.print("\tcbut: "); Serial.print((byte)cbut,DEC);                // DEBUG CODE
-	
-	// Frame  Data Payload START
-	// Bytes 17-23 NunChuck Data
-	payload[0]=joyx;  // 17 JoyX ranges from approx 30 - 220
-	payload[1]=joyy;  // 18 JoyY ranges from approx 29 - 230
-	payload[2]=accx;  // 19 AccX ranges from approx 70 - 182
-	payload[3]=accy;  // 20 AccY ranges from approx 65 - 173
-	payload[4]=accz;  // 21 AccZ ranges from approx 65 - 173
-	payload[5]=zbut;  // 22 ZButton Status
-	payload[6]=cbut;  // 23 CButton Status
-	
-	// Take the value of stored in triggeritem, and convert them to MSB & LSB 2 bytes via a bitshift operation 
-	//    triggeritemLSB = triggeritem &0xFF;
-	//    triggeritemMSB = (triggeritem >> 8) &0xFF;  
-	
-	//  NOTE:  To make the 2 Byte (MSB & LSB) values back into an int use the following code:    
-	//         int triggeritem = (int)(word(triggeritemMSB,triggeritemLSB));    
-	
-	// Bytes 24 & 25 Trigger Event
-	payload[7]=triggeritem;    // 24 0 to 254  If you have more than 254 events... need to rework event code
-	payload[8]=0x00;           // 25 - Future USE
-	
+	payload[0]=joyx;			// 17 JoyX ranges from approx 30 - 220
+	payload[1]=joyy;			// 18 JoyY ranges from approx 29 - 230
+	payload[2]=accx;			// 19 AccX ranges from approx 70 - 182
+	payload[3]=accy;			// 20 AccY ranges from approx 65 - 173
+	payload[4]=accz;			// 21 AccZ ranges from approx 65 - 173
+	payload[5]=zbut;			// 22 ZButton Status
+	payload[6]=cbut;  			// 23 CButton Status
+	payload[7]=triggeritem;		// 24 0 to 254  If you have more than 254 events... need to rework event code
+	payload[8]=0x00;			// 25 - Future USE
+
 	xbee.send(zbTx);
 
 }  
