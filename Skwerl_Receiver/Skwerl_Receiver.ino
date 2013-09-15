@@ -13,7 +13,10 @@ AtCommandResponse atResponse = AtCommandResponse();
 
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 int triggerEvent;
+
 int randNum;
+int mp3Byte = 0;
+boolean mp3Playing = false;
 
 void setup() {
 	
@@ -28,7 +31,8 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	playSound(164);
+	Serial2.write('t');
+	Serial2.write(164);
 
 	delay(3000);
 	getOP();
@@ -38,6 +42,15 @@ void setup() {
 void loop() {
 
 	xbee.readPacket();
+	
+	if (Serial2.available()) {
+		mp3Byte = Serial2.read();
+		Serial.print("I received: ");
+		Serial.println(mp3Byte, DEC);
+		if (mp3Byte == 88) {
+			mp3Playing = false;
+		}
+	}
 
 	if (xbee.getResponse().isAvailable()) {
 		//Serial.println("Got something...");
@@ -54,13 +67,15 @@ void loop() {
 			triggerEvent = rx.getData()[7];// TriggerEvent
 			//    int futureEvent = rx.getData()[8]; // Future Event Payload
 			
+			/*
 			Serial.print(">> joyx =");Serial.print(joyx);								// DEBUG CODE
 			Serial.print("\tjoyy =");Serial.print(joyy);								// DEBUG CODE
 			Serial.print("\taccx =");Serial.print(accx);								// DEBUG CODE
 			Serial.print("\taccy =");Serial.print(accy);								// DEBUG CODE
 			Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
 			Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
-
+			*/
+			
 			if (triggerEvent == 102) {
 				Serial.println("C Button Pressed");
 				if (joyy <= 70) {
@@ -75,6 +90,9 @@ void loop() {
 					// Joystick right, play "angry" sound:
 					randNum = random(137,150);
 					playSound(randNum);
+				} else if (joyy >= 110) {
+					// Joystick down, Send STOP command:
+					stopSound();
 				} else {
 					// Joystick down or neutral, play "casual" sound:
 					randNum = random(1,41);
@@ -156,11 +174,19 @@ void getOP() {
 }
 
 void playSound(int sample) {
+	if (mp3Playing == false) {
+		Serial.print("Playing sample #");
+		Serial.println(sample);
+		Serial2.write('t');
+		Serial2.write(sample);
+		mp3Playing = true;
+	}
+}
 
-	Serial.print("Playing sample #");
-	Serial.println(sample);
-
-	Serial2.write('t');
-	Serial2.write(sample);
-
+void stopSound() {
+	if (mp3Playing == true) {
+		Serial.println("Stop");
+		Serial2.write('O');
+		mp3Playing = false;
+	}
 }
