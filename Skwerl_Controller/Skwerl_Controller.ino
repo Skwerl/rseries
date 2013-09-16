@@ -147,132 +147,36 @@ int chan3Max = 180;					// Channel 3 Max - Dome Rotation
 int loop_cnt=0;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
-///////////////////////* Touchscreen Configuration *////////////////////////////////////////////////
+///////////////////////* LCD Display Configuration *////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-// For better pressure precision, we need to know the resistance between X+ and X-
-// Use any multimeter to read it. Sample baseline is 300 ohms
-#define XR 500
+int boxesPerRow = 3;
+int rowsPerPage = 3;
 
-int menuScreens = 12;
-int displaygroup = 1;
-int displayitem = 1;
-int scrollymin = 23;
-int scrollyinc = 16;
-int scrollymax = 167;
-int scrollyloc = 23;
+char* gridTriggers[] = {
+	"Item 1",
+	"Item 2",	
+	"Item 3",
+	"Item 4",
+	"Item 5",
+	"Item 6",
+	"Item 7",
+	"Item 8",
+	"Item 9",
+	"Item 10",
+	"Item 11",
+	"Item 12",
+	"***END***" // Ignore
+};
 
-//		Note: menu Item code = byte sent to RSeries Receiver sketch
-//		Triggering menuItem[42] will cause Byte equivelant of 42 to be sent, which is B00101010 
-//
-//		In future version this will move to a .txt file stored on micro-SD card
-//
-//		Keep Descriptions 13 Chars or less.
-//
-//							"12345678901234567890"	// This is just a sample of max length of 20 for TextSize=2
-char* menuItem[] =		{   "1234567890123",		// DO NOT CHANGE or REMOVE this is Item 0
+int itemsPerPage = boxesPerRow*rowsPerPage;
+int countedTriggers = 0;
+int curPage = 1;
+int triggered;
 
-							"Alarm 1",				// Page 1
-							"Alarm 2",
-							"Cantina Song",
-							"Doot Doot",
-							"Failure",
-							"Humming",
-							"Leia Message",
-							"Patrol",				// Page 2
-							"Scream 1",
-							"Scream 2",
-							"Scream 3",
-							"Scream 4",
-							"Processing",
-							"Short Circuit",
-							"Startup Sound",		// Page 3
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
+// not yet sure how to get this to return the right number... 
+//int totalTriggers = ((sizeof(gridTriggers)/sizeof(char))-1);
 
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item",
-							"Item"
-
-						};
-
-int itemsel;
                         // Controller shield battery monitor variables
 int analogVCCinput = 5; // RSeries Controller default VCC input is A5
 float R1 = 47000.0;     // >> resistance of R1 in ohms << the more accurate these values are
@@ -285,30 +189,10 @@ float vinSTRONG=3.4;    // If vin is above vinSTRONG display GREEN battery
 float vinWEAK=2.9;		// if vin is above vinWEAK display YELLOW otherwise display RED
 float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
 
-						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
-#define YM 9			// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
-#define XM A8			// X- (Minus) must be an analog pin, use "An" notation! // Orig A2
-#define YP A9			// Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
-#define XP 8			// X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
-
-						// These can be adjusted for greater precision 
-#define TS_MINX 131		// Orig = 150
-#define TS_MINY 120		// Orig = 120
-#define TS_MAXX 920		// Orig = 920
-#define TS_MAXY 950		// Orig = 940
-
-#define rotation 3		// Which only changes the orientation of the LCD not the touch screen
-
-uint16_t touchedY;
-uint16_t touchedX;
-
-TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
-
 #define LCD_CS A3
 #define LCD_CD A2
 #define LCD_WR A1
 #define LCD_RD A0 
-                                  
 #define LCD_RESET A4		// Use A4 to reset the Pin 7 of the TFT Display - Not Optional
 
 // Color definitions
@@ -328,6 +212,33 @@ TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
 #define optionCOLOR RED
 
 Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Touch Configuration *//////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+// For better pressure precision, we need to know the resistance between X+ and X-
+// Use any multimeter to read it. Sample baseline is 300 ohms
+#define XR 500
+
+						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
+#define YM 9			// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
+#define XM A8			// X- (Minus) must be an analog pin, use "An" notation! // Orig A2
+#define YP A9			// Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
+#define XP 8			// X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
+
+						// These can be adjusted for greater precision 
+#define TS_MINX 131		// Orig = 150
+#define TS_MINY 120		// Orig = 120
+#define TS_MAXX 920		// Orig = 920
+#define TS_MAXY 950		// Orig = 940
+
+#define rotation 3		// Which only changes the orientation of the LCD not the touch screen
+
+uint16_t touchedY;
+uint16_t touchedX;
+
+TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
@@ -484,7 +395,8 @@ void setup() {
 	//displaySCROLL();									// Displays scroll buttons
 	//displayOPTIONS();									// Display trigger Options
 
-	displayGrid();
+	countTriggers();
+	updateGrid();
 
 	t=0;
 	//  pinMode(RSSIpin, INPUT);						// Setup RSSIpin as Digital Input for 
@@ -546,7 +458,11 @@ void loop() {
 
 }
 
-void getTouch() {                     //
+void getTouch() {  
+
+/*
+
+//
   Point p = ts.getPoint();            // Check for TFT Input
                                       // NOTE: TouchScreen X&Y (X Height from Bottom Left, Y= 320 Width from Left to Right) 
                                       // aligns with LCD X 320 Width (Left to Right) & Y Height Top to Bottom (240 Height)
@@ -650,6 +566,9 @@ void getTouch() {                     //
       }                                          // Finished with Down Arrow
     }                                            // Finished with Scroll Area
   }                                              // Finished with Touch Pressure
+
+*/
+
 }
 
 void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
@@ -869,7 +788,21 @@ RSSIduration = rx16.getRssi();
   }
   }
 
-void displayGrid() {
+void countTriggers() {
+	boolean counted = false;
+	int counter = -1;
+	while(counted == false) {
+		counter++;
+		if (gridTriggers[counter] == "***END***") {
+			counted = true;
+		}
+	}
+	countedTriggers = counter;
+	//Serial.print("total triggers: ");
+	//Serial.println(countedTriggers);
+}
+
+void updateGrid() {
 
 	int i;
 	int xOffset = 0;
@@ -877,22 +810,10 @@ void displayGrid() {
 	int boxWidth = 100;
 	int boxHeight = 52;
 	int boxMargin = 10;
-	int boxesPerRow = 3;
-	int rowsPerPage = 3;	
 	int colIndex = 1;
 	
-	char* gridTriggers[] = {
-		"Item 1",
-		"Item 2",	
-		"Item 3",
-		"Item 4",
-		"Item 5",
-		"Item 6",
-		"Item 7",
-		"Item 8",
-		"***END***" // Ignore
-	};
-
+	int startAt = ((curPage-1)*itemsPerPage);
+	
 	// Render Pagination
 	tft.fillRect(0, 220, 130, 20, WHITE);
 	tft.fillRect(190, 220, 130, 20, WHITE);
@@ -901,9 +822,9 @@ void displayGrid() {
 	tft.setCursor(150, 222);
 	tft.setTextColor(WHITE);
 	tft.setTextSize(2);
-	tft.println("01");
+	tft.println(pad(curPage,2));
 
-	for (i=0; i<(sizeof(gridTriggers)/sizeof(char))-1; i++) {
+	for (i=startAt; i<(startAt+itemsPerPage); i++) {
 
 		if (gridTriggers[i] == "***END***") { break; }
 
@@ -911,8 +832,10 @@ void displayGrid() {
 
 		tft.fillRect(xOffset, yOffset, boxWidth, boxHeight, GRAY);
 		
-		Serial.print("Trigger: ");
-		Serial.println(gridTriggers[i]);
+		tft.setCursor((xOffset+10), (yOffset+((boxHeight/2)-4)));
+		tft.setTextColor(WHITE);
+		tft.setTextSize(1);
+		tft.println(gridTriggers[i]);
 
 		colIndex++;
 		if (colIndex > boxesPerRow) {
@@ -922,85 +845,6 @@ void displayGrid() {
 
 	}
 
-}
-
-void displaySCROLL() {
-
-/*
-
-// Display Scroll Buttons
-  tft.drawTriangle(30, 40,            // Up Scroll Button
-                    0, 100,
-                   60,100, BLUE); 
-  tft.setCursor(20, 80);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.println("UP");
-
-  tft.drawTriangle(0, 175,              // Down Scroll Button
-                  60, 175,
-                  30, 235, BLUE); 
-
-  tft.setCursor(20, 180);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.println("DN");
-
-*/
-
-}
-
-void displayOPTIONS() {                  // Display Event Trigger Options 
-
-/*
-
-  tft.fillRect(0, 21, 310, 17, BLACK);   // Clear Message Area and leave scroll indicator
-
-  tft.fillRect(0, 127, 68, 17, BLACK);   // Clear Center Pg X
-
-  tft.setTextColor(YELLOW);
-  tft.setTextSize(2);
-  tft.setCursor(5, 128);
-  tft.println("Pg");
-  tft.setCursor(35, 128);
-    
-  tft.println(displaygroup);
- 
-  tft.fillRect(69, 38, 241, 202, BLACK); // Clear options, leave scroll bar
-
-  int xoffset = 70;                      // Display each 7 Item Names
-  int yoffset=40;
-  tft.setTextColor(optionCOLOR);
-  tft.setTextSize(3);                    // More usable than 2
-  int yTextSizeoffset= 29;               // 20 if TextSize =2, 29 if TextSize=3  
-
-  tft.setCursor(xoffset, yoffset);
-  tft.println(menuItem[displayitem]);    // Item 1
-  
-  tft.setCursor(xoffset, yoffset+yTextSizeoffset);
-  tft.println(menuItem[displayitem+1]);  // Item 2
-  
-  tft.setCursor(xoffset, yoffset+(yTextSizeoffset*2));
-  tft.println(menuItem[displayitem+2]);  // Item 3
-  
-  tft.setCursor(xoffset, yoffset+(yTextSizeoffset*3));
-  tft.println(menuItem[displayitem+3]);  // Item 4
-  
-  tft.setCursor(xoffset, yoffset+(yTextSizeoffset*4));
-  tft.println(menuItem[displayitem+4]);  // Item 5
-  
-  tft.setCursor(xoffset, yoffset+(yTextSizeoffset*5));  
-  tft.println(menuItem[displayitem+5]);  // Item 6
-  
-  tft.setCursor(xoffset, yoffset+(yTextSizeoffset*6));
-  tft.println(menuItem[displayitem+6]);  // Item 7
-  
-  tft.fillRect(315, 23, 4, 216, BLACK);       // draw scroll indicator  
-  tft.drawRect(314, 22, 6, 218, WHITE);       // draws outline of the scroll bar
-  tft.fillRect(315, scrollyloc, 4, 15, BLUE); // draw scroll indicator
-  
-  */
-  
 }
 
 void sendtrigger() {                          // We need to see how long since we last sent a trigger event
@@ -1035,7 +879,7 @@ void displaySendclear() {
 	triggeritem=0;								// Zero out selection variables
 	zbut=0;
 	cbut=0;
-	itemsel = 0;
+	//itemsel = 0;
 
 }
 
@@ -1321,4 +1165,23 @@ void displayBATT() {                        			// Display Local Battery Status
 		tft.fillRect(85, 12, 6, 4, RED);				// If Battery is low then RED
 	}    
 
+}
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Utilities *////////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+String pad(int number, byte width) {
+	String output;
+	int currentMax = 10;
+	for (byte i=1; i<width; i++) {
+		if (number < currentMax) {
+			output += "0";
+		}
+		currentMax *= 10;
+	} 
+	output += String(number);
+	//Serial.print("output: ");
+	//Serial.println(output);
+	return output;
 }
