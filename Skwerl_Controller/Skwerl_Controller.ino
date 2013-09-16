@@ -422,8 +422,8 @@ void loop() {
 	joyx = map(nunchuk.analogX, chan1Min, chan1Max, 60, 120);	// Channel 1 joyx & Channel 2 joyy from NunChuck Joystick
 	joyy = map(nunchuk.analogY, chan2Min, chan2Max, 120, 60);	// Map it to Min & Max of each channel
 	accx = nunchuk.accelX/2/2;									// ranges from approx 70 - 182
-	accy = nunchuk.accelZ/2/2;									// ranges from approx 65 - 173
-	accz = nunchuk.accelY/2/2;									// ranges from approx 65 - 173
+	accy = nunchuk.accelY/2/2;									// ranges from approx 65 - 173
+	accz = nunchuk.accelZ/2/2;									// ranges from approx 65 - 173
 	zbut = nunchuk.zButton;										// either 0 or 1
 	cbut = nunchuk.cButton;										// either 0 or 1
 																// Switched Z & Y on purpose. Now: X = left/right, Y = up/down, Z = forward/back.
@@ -496,7 +496,6 @@ void getTouch() {
 			if (curPage > countedPages) { curPage = 1; }
 			updateGrid();
 		}		
-		
 
 		if (touchedY >= 20 && touchedY <= 205) {
 
