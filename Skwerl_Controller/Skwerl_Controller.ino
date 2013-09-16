@@ -153,19 +153,26 @@ int loop_cnt=0;
 int boxesPerRow = 3;
 int rowsPerPage = 3;
 
+// Until TX payload has been reworked, we have a limit of 251 triggers.
+// Trigger names should be 13 characters or less.
+//  |-------------|
+
 char* gridTriggers[] = {
-	"Item 1",
-	"Item 2",	
-	"Item 3",
-	"Item 4",
-	"Item 5",
-	"Item 6",
-	"Item 7",
-	"Item 8",
-	"Item 9",
-	"Item 10",
-	"Item 11",
-	"Item 12",
+	"Alarm 1",
+	"Alarm 2",	
+	"Cantina Song",
+	"Doot Doot",
+	"Failure",
+	"Humming",
+	"Leia Message",
+	"Patrol",
+	"Scream 1",
+	"Scream 2",
+	"Scream 3",
+	"Scream 4",
+	"Processing",
+	"Short Circuit",
+	"Startup Sound",
 	"***END***" // Ignore
 };
 
@@ -173,6 +180,8 @@ int itemsPerPage = boxesPerRow*rowsPerPage;
 int countedTriggers = 0;
 int countedPages = 0;
 int curPage = 1;
+
+int startAt;
 int triggered;
 
 // not yet sure how to get this to return the right number... 
@@ -302,10 +311,9 @@ boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor 
 
 ArduinoNunchuk nunchuk = ArduinoNunchuk();
 
-int buttonval;
-
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
-byte triggeritem;
+
+byte triggerEvent;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
@@ -377,7 +385,6 @@ void setup() {
 	tft.fillScreen(BLACK);
 	
 	nunchuk.init();										// Initialize Nunchuk using I2C
-	buttonval = 0;
 	
 	//displaySPLASH();									// Display Splash Screen...
 	//delay(1500);										// ...for 1500 ms
@@ -420,17 +427,7 @@ void loop() {
 	zbut = nunchuk.zButton;										// either 0 or 1
 	cbut = nunchuk.cButton;										// either 0 or 1
 																// Switched Z & Y on purpose. Now: X = left/right, Y = up/down, Z = forward/back.
-	
-	/*
-	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);		// DEBUG CODE
-	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);		// DEBUG CODE
-	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);		// DEBUG CODE
-	Serial.print("\taccy: "); Serial.print((byte)accy,DEC);		// DEBUG CODE
-	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);		// DEBUG CODE
-	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);		// DEBUG CODE
-	Serial.print("\tcbut: "); Serial.println((byte)cbut,DEC);	// DEBUG CODE
-	*/
-	
+
 	// Normalize, emulate "dead stick" zones...
 	
 	if (joyx < 82) { joyx = joyx; }
@@ -445,9 +442,9 @@ void loop() {
 	else if (accx > 160) { accx = 120; }
 	else { accx = 90; }
 
-	if (zbut == 1 && cbut == 0) { triggeritem = 101; TXdata(); }
-	else if (zbut == 0 && cbut == 1) {triggeritem = 102; TXdata(); }
-	else if (zbut == 1 && cbut == 1) {triggeritem = 103; TXdata(); }
+	if (zbut == 1 && cbut == 0) { triggerEvent = 253; }
+	else if (zbut == 0 && cbut == 1) {triggerEvent = 252; }
+	else if (zbut == 1 && cbut == 1) {triggerEvent = 254; }
 	
 	getTouch();
 	
@@ -502,9 +499,7 @@ void getTouch() {
 		
 
 		if (touchedY >= 20 && touchedY <= 205) {
-		
-			//Serial.println("Touched Menu Item Area");
-			
+
 			touchedRelativeX = touchedX;
 			touchedRelativeY = touchedY-20;
 
@@ -516,9 +511,7 @@ void getTouch() {
 			//Serial.print(",");
 			//Serial.println(touchedCol);
 
-			
-			// translate coordinates to trigger, send trigger!
-
+			triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
 
 		}
 
@@ -775,7 +768,7 @@ void updateGrid() {
 	int boxMargin = 10;
 	int colIndex = 1;
 	
-	int startAt = ((curPage-1)*itemsPerPage);
+	startAt = ((curPage-1)*itemsPerPage);
 	
 	tft.fillRect(0, 21, 320, 220, BLACK);
 
@@ -791,7 +784,7 @@ void updateGrid() {
 
 	for (i=startAt; i<(startAt+itemsPerPage); i++) {
 
-		if (gridTriggers[i] == "***END***") { break; }
+		if ((gridTriggers[i] == "***END***") || (i>251)) { break; }
 
 		xOffset = (colIndex-1)*(boxMargin+boxWidth);
 
@@ -812,40 +805,11 @@ void updateGrid() {
 
 }
 
-void sendtrigger() {                          // We need to see how long since we last sent a trigger event
-
-/*
-                                              // Would like to keep to many events happening, so about 100ms
-Serial.println("Arrived at sendtrigger");            // DEBUG CODE
-
-  displayitem = displaygroup * 7 - 6;
-  itemsel = itemsel - 1;
-  triggeritem = displayitem + itemsel;
-  if (triggeritem == 17) {triggeritem = 104;} // workaround to fix 17 & 19 trigger issue on XBees
-    else if (triggeritem == 19) {triggeritem = 105;} // workaround to fix 17 & 19 trigger issue on XBees
-  
-  
-  Serial.print("Event Triggered --------------------------> triggeritem = ");Serial.println(triggeritem);             // DEBUG CODE
-  
-  tft.setCursor(80, 22);
-  tft.setTextColor(GREEN);
-  tft.setTextSize(2);
-  tft.println("Sending:");
-  tft.setCursor(180, 22);
-  tft.println(int(triggeritem)); // using INT to make the byte readable on the display as a number vs a single byte
-  
-  Serial.print("SENDING triggeritem = ");Serial.println(triggeritem);             // DEBUG CODE
- */
-}
-
 void displaySendclear() {
-
 //	tft.fillRect(80, 21, 220, 17, BLACK);		// Clear Trigger Message
-	triggeritem=0;								// Zero out selection variables
+	triggerEvent=0;								// Zero out selection variables
 	zbut=0;
 	cbut=0;
-	//itemsel = 0;
-
 }
 
 void displayPOST() {									// Power Up Self Test and Init
@@ -1048,8 +1012,19 @@ void TXdata() {
 	payload[4]=accz;			// 21 AccZ ranges from approx 65 - 173
 	payload[5]=zbut;			// 22 ZButton Status
 	payload[6]=cbut;  			// 23 CButton Status
-	payload[7]=triggeritem;		// 24 0 to 254  If you have more than 254 events... need to rework event code
+	payload[7]=triggerEvent;	// 24 0 to 254  If you have more than 254 events... need to rework event code
 	payload[8]=0x00;			// 25 - Future USE
+
+	/*
+	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);			// DEBUG CODE
+	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);			// DEBUG CODE
+	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);			// DEBUG CODE
+	Serial.print("\taccy: "); Serial.print((byte)accy,DEC);			// DEBUG CODE
+	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);			// DEBUG CODE
+	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);			// DEBUG CODE
+	Serial.print("\tcbut: "); Serial.print((byte)cbut,DEC);			// DEBUG CODE
+	Serial.print("\ttrigger: "); Serial.println(triggerEvent);		// DEBUG CODE
+	*/
 
 	xbee.send(zbTx);
 

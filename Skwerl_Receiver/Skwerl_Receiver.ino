@@ -59,58 +59,7 @@ void loop() {
 			//Serial.println("Got a ZB RX Packet...");
 			xbee.getResponse().getZBRxResponse(rx);
 			
-			int joyx = rx.getData()[0];    // Left Right
-			int joyy = rx.getData()[1];    // Fwd Back
-			int accx = rx.getData()[2];    // Dome
-			//    int accy = rx.getData()[3];  // Nunchuk Y Acceleramator 
-			//    int accz = rx.getData()[4];  // Nunchuk Z Acceleramator
-			triggerEvent = rx.getData()[7];// TriggerEvent
-			//    int futureEvent = rx.getData()[8]; // Future Event Payload
-			
-			/*
-			Serial.print(">> joyx =");Serial.print(joyx);								// DEBUG CODE
-			Serial.print("\tjoyy =");Serial.print(joyy);								// DEBUG CODE
-			Serial.print("\taccx =");Serial.print(accx);								// DEBUG CODE
-			Serial.print("\taccy =");Serial.print(accy);								// DEBUG CODE
-			Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
-			Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
-			*/
-			
-			if (triggerEvent == 102) {
-				Serial.println("C Button Pressed");
-				if (joyy <= 70) {
-					// Joystick up, play "happy" sound:
-					randNum = random(41,83);
-					playSound(randNum);
-				} else if (joyx >= 110) {
-					// Joystick left, play "scared" sound:
-					randNum = random(83,137);
-					playSound(randNum);
-				} else if (joyx <= 70) {
-					// Joystick right, play "angry" sound:
-					randNum = random(137,150);
-					playSound(randNum);
-				} else if (joyy >= 110) {
-					// Joystick down, Send STOP command:
-					stopSound();
-				} else {
-					// Joystick down or neutral, play "casual" sound:
-					randNum = random(1,41);
-					playSound(randNum);
-				}
-			}
-
-			if (triggerEvent == 101) {
-				Serial.println("Z Button Pressed");
-				// Play cantina song:
-				playSound(152);				
-			}
-
-			if (triggerEvent == 103) {
-				Serial.println("Z+C Buttons Pressed");
-				// Play Leia's message:
-				playSound(156);				
-			}
+			handleEvent();
 			
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
 				//Serial.println("Sender got ACK");  
@@ -139,6 +88,117 @@ void loop() {
 	} else if (xbee.getResponse().isError()) {
 		Serial.print("Error reading packet.  Error code: ");  
 		Serial.println(xbee.getResponse().getErrorCode());
+	}
+
+}
+
+void handleEvent() {
+
+	int joyx = rx.getData()[0];    // Left Right
+	int joyy = rx.getData()[1];    // Fwd Back
+	int accx = rx.getData()[2];    // Dome
+	//    int accy = rx.getData()[3];  // Nunchuk Y Acceleramator 
+	//    int accz = rx.getData()[4];  // Nunchuk Z Acceleramator
+	triggerEvent = rx.getData()[7];// TriggerEvent
+	//    int futureEvent = rx.getData()[8]; // Future Event Payload
+
+	/*
+	Serial.print(">> joyx =");Serial.print(joyx);								// DEBUG CODE
+	Serial.print("\tjoyy =");Serial.print(joyy);								// DEBUG CODE
+	Serial.print("\taccx =");Serial.print(accx);								// DEBUG CODE
+	Serial.print("\taccy =");Serial.print(accy);								// DEBUG CODE
+	Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
+	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
+	*/
+
+	switch (triggerEvent) {
+
+		// Nunchuk triggers first...
+		
+		case 252:
+			Serial.println("C Button Pressed");
+			if (joyy <= 70) {
+				// Joystick up, play "happy" sound:
+				randNum = random(41,83);
+				playSound(randNum);
+			} else if (joyx >= 110) {
+				// Joystick left, play "scared" sound:
+				randNum = random(83,137);
+				playSound(randNum);
+			} else if (joyx <= 70) {
+				// Joystick right, play "angry" sound:
+				randNum = random(137,150);
+				playSound(randNum);
+			} else if (joyy >= 110) {
+				// Joystick down, Send STOP command:
+				stopSound();
+			} else {
+				// Joystick down or neutral, play "casual" sound:
+				randNum = random(1,41);
+				playSound(randNum);
+			}
+			break;
+
+		case 253:
+			Serial.println("Z Button Pressed");
+			// Play cantina song:
+			playSound(152);				
+			break;
+
+		case 254:
+			Serial.println("Z+C Buttons Pressed");
+			// Play Leia's message:
+			playSound(156);				
+			break;
+
+		// Any touch screen triggers?
+
+		case 1:
+			playSound(150);				
+			break;
+		case 2:
+			playSound(151);				
+			break;
+		case 3:
+			playSound(152);				
+			break;
+		case 4:
+			playSound(153);				
+			break;
+		case 5:
+			playSound(154);				
+			break;
+		case 6:
+			playSound(155);				
+			break;
+		case 7:
+			playSound(156);				
+			break;
+		case 8:
+			playSound(157);				
+			break;
+		case 9:
+			playSound(158);				
+			break;
+		case 10:
+			playSound(159);				
+			break;
+		case 11:
+			playSound(160);				
+			break;
+		case 12:
+			playSound(161);				
+			break;
+		case 13:
+			playSound(161);				
+			break;
+		case 14:
+			playSound(162);				
+			break;
+		case 15:
+			playSound(163);				
+			break;
+
 	}
 
 }
