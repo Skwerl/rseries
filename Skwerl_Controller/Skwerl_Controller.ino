@@ -171,6 +171,7 @@ char* gridTriggers[] = {
 
 int itemsPerPage = boxesPerRow*rowsPerPage;
 int countedTriggers = 0;
+int countedPages = 0;
 int curPage = 1;
 int triggered;
 
@@ -217,9 +218,12 @@ Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 ///////////////////////* Touch Configuration *//////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+
 // For better pressure precision, we need to know the resistance between X+ and X-
-// Use any multimeter to read it. Sample baseline is 300 ohms
-#define XR 500
+// Use any multimeter to read it. Sample baseline is 300 (ohms)
+#define XR 200
+int sensitivity = 30;	// Default is 10
+						// But this is in relation to X resistance
 
 						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
 #define YM 9			// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
@@ -460,114 +464,118 @@ void loop() {
 
 void getTouch() {  
 
-/*
+	Point p = ts.getPoint(); 
 
-//
-  Point p = ts.getPoint();            // Check for TFT Input
-                                      // NOTE: TouchScreen X&Y (X Height from Bottom Left, Y= 320 Width from Left to Right) 
-                                      // aligns with LCD X 320 Width (Left to Right) & Y Height Top to Bottom (240 Height)
-                                      // so we are going to realign during the map
-                                    
-//  pinMode(XM, OUTPUT);                // switch back to OUTPUT for XM Pins - Moving to A8 & A9, so we can remove this
-//  pinMode(YP, OUTPUT);                // switch back to OUTPUT for YP Pins
+	//Serial.print("Registered touch, pressure: "); Serial.println(p.z);
+	//sensitivity = ts.pressureThreshhold; // Default?
 
-                                      // we have some minimum pressure we consider 'valid'
-                                      // pressure of 0 means no pressing!
+	if (p.z > sensitivity) {
 
-  if (p.z > ts.pressureThreshhold) {  // OK Someone touched the screen
-                                      // Now lets map the touch point
+		Serial.print("RAW X = "); Serial.print(p.x);				// DEBUG CODE
+		Serial.print("\tY = "); Serial.print(p.y);					// DEBUG CODE
+		Serial.print("\tPressure = "); Serial.print(p.z);			// DEBUG CODE
 
-  Serial.print("RAW X = "); Serial.print(p.x);          // DEBUG CODE
-  Serial.print("\tY = "); Serial.print(p.y);            // DEBUG CODE
-  Serial.print("\tPressure = "); Serial.print(p.z);     // DEBUG CODE
-//  delay (10);
-                                                        // We also have to re-align LCD X&Y to Touch X&Y
-  touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);        // Notice mapping touchedY to p.x
-  touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);        // Notice mapping touchedX to p.y
-                                                        // and turn from 0->1023 to X & Y screen coordinates
+		// We also have to re-align LCD X&Y to Touch X&Y
+		touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);				// Notice mapping touchedY to p.x
+		touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);				// Notice mapping touchedX to p.y
 
-  
-  Serial.print("\tTouched X = "); Serial.print(touchedX);            // DEBUG CODE
-  Serial.print("\tTouched Y = "); Serial.print(touchedY);            // DEBUG CODE
-//  Serial.println(" ");                                               // DEBUG CODE
-  
+		Serial.print("\tTouched X = "); Serial.print(touchedX);		// DEBUG CODE
+		Serial.print("\tTouched Y = "); Serial.print(touchedY);		// DEBUG CODE
+		Serial.println(" ");										// DEBUG CODE
+		
+		if (touchedY >= 206 && touchedX < 160) {
+			curPage--;
+			if (curPage < 1) { curPage = countedPages; }
+			updateGrid();
+		}		
 
-                                                         // Did they select a Menu Item?
-    if (touchedX >= 75 && touchedY>= 40) {               // They touched inside the Menu Item area, need to decode
-    
-//    Serial.println("Touched Menu Item Area");            // DEBUG CODE
-    
-      if (touchedY >= 40 && touchedY < 70){              // Item 1
-        itemsel=1;
-        sendtrigger();
-      }
-      else if (touchedY >= 70 && touchedY < 95){              // Item 2
-        itemsel=2;
-        sendtrigger();
-      }
-      else if (touchedY >= 95 && touchedY < 125){             // Item 3
-        itemsel=3;
-        sendtrigger();
-      }
-      else if (touchedY >= 125 && touchedY < 150){           // Item 4
-        itemsel=4;
-        sendtrigger();
-      }
-      else if (touchedY >= 150 && touchedY < 185){           // Item 5
-        itemsel=5;
-        sendtrigger();  
-      }
-      else if (touchedY >= 185 && touchedY < 210){           // Item 6
-        itemsel=6;
-        sendtrigger();
-      }
-      else if (touchedY >= 210 && touchedY <= 240){         // Item 7
-        itemsel=7;
-        sendtrigger();
-      }
-    }
- 
-    
-    if (touchedY >= 40 && touchedX < 60) {       // Scroll Button Area Touched
-                                                   
-      if (touchedY >=40 && touchedY <=105) {     // Up Arrow Pressed?
-      
-        displaygroup = displaygroup - 1;         // reduce displaygroup by 1
+		if (touchedY >= 206 && touchedX > 160) {
+			curPage++;
+			if (curPage > countedPages) { curPage = 1; }
+			updateGrid();
+		}		
+		
+		
+		/*
 
-//        Serial.print("Display Group = ");Serial.println(displaygroup);// DEBUG CODE
-//        Serial.println("Updating Display Option");            // DEBUG CODE
+		// Did they select a Menu Item?
+		if (touchedX >= 75 && touchedY>= 40) {               // They touched inside the Menu Item area, need to decode
+		
+			//    Serial.println("Touched Menu Item Area");            // DEBUG CODE
+			
+			if (touchedY >= 40 && touchedY < 70){              // Item 1
+			itemsel=1;
+			sendtrigger();
+			}
+			else if (touchedY >= 70 && touchedY < 95){              // Item 2
+			itemsel=2;
+			sendtrigger();
+			}
+			else if (touchedY >= 95 && touchedY < 125){             // Item 3
+			itemsel=3;
+			sendtrigger();
+			}
+			else if (touchedY >= 125 && touchedY < 150){           // Item 4
+			itemsel=4;
+			sendtrigger();
+			}
+			else if (touchedY >= 150 && touchedY < 185){           // Item 5
+			itemsel=5;
+			sendtrigger();  
+			}
+			else if (touchedY >= 185 && touchedY < 210){           // Item 6
+			itemsel=6;
+			sendtrigger();
+			}
+			else if (touchedY >= 210 && touchedY <= 240){         // Item 7
+			itemsel=7;
+			sendtrigger();
+			}
+		
+		}
+		
+		
+		if (touchedY >= 40 && touchedX < 60) {       // Scroll Button Area Touched
+			
+			if (touchedY >=40 && touchedY <=105) {     // Up Arrow Pressed?
+			
+			displaygroup = displaygroup - 1;         // reduce displaygroup by 1
+			
+			//        Serial.print("Display Group = ");Serial.println(displaygroup);// DEBUG CODE
+			//        Serial.println("Updating Display Option");            // DEBUG CODE
+			
+			if (displaygroup < 1) {                 // unless displaygroup now <=0
+			displaygroup = 12;                     // in which case setup everything to wrap to group 12
+			displayitem = 78;                      // display group 12 & start with item 78
+			scrollyloc = scrollymax;               // set scroll indicator to home top location
+			} 
+			else if (displaygroup >=1) {                   // So we are good to 
+			displayitem = displaygroup * 7 - 6;    // Since we can only display 7 items with TextSize=3
+			scrollyloc = scrollyloc - scrollyinc;  // move scroll indicator loc by subtracting increment from location
+			}
+			
+			
+			displayOPTIONS();                         // Refresh OPTIONS Screen
+			}                                          // Finshed with Up Arrow
+			
+			if (touchedY >=180 && touchedX < 60) {    // Down Arrow Pressed?
+			displaygroup = displaygroup + 1;         // increase displaygroup
+			if (displaygroup > menuScreens) {                // unless displaygroup now >=12
+			displaygroup = 1;                     // in which case setup everything to
+			displayitem = 1;                      // display group 11 & start with item 78
+			scrollyloc = scrollymin;               // set scroll indicator to bottom scroll location
+			}
+			else if (displaygroup < menuScreens) {                  // So we are good to 
+			displayitem = displaygroup * 7 - 6;    // Since we can only display 7 items with TextSize=3
+			scrollyloc = scrollyloc + scrollyinc;  // move scroll indicator loc by adding increment to location
+			}
+			displayOPTIONS();                        // Refresh OPTIONS Screen
+			}                                          // Finished with Down Arrow
+		}                                            // Finished with Scroll Area
 
-        if (displaygroup < 1) {                 // unless displaygroup now <=0
-          displaygroup = 12;                     // in which case setup everything to wrap to group 12
-          displayitem = 78;                      // display group 12 & start with item 78
-          scrollyloc = scrollymax;               // set scroll indicator to home top location
-        } 
-       else if (displaygroup >=1) {                   // So we are good to 
-          displayitem = displaygroup * 7 - 6;    // Since we can only display 7 items with TextSize=3
-          scrollyloc = scrollyloc - scrollyinc;  // move scroll indicator loc by subtracting increment from location
-        }
-        
-       
-       displayOPTIONS();                         // Refresh OPTIONS Screen
-      }                                          // Finshed with Up Arrow
-      
-      if (touchedY >=180 && touchedX < 60) {    // Down Arrow Pressed?
-        displaygroup = displaygroup + 1;         // increase displaygroup
-        if (displaygroup > menuScreens) {                // unless displaygroup now >=12
-          displaygroup = 1;                     // in which case setup everything to
-          displayitem = 1;                      // display group 11 & start with item 78
-          scrollyloc = scrollymin;               // set scroll indicator to bottom scroll location
-        }
-        else if (displaygroup < menuScreens) {                  // So we are good to 
-          displayitem = displaygroup * 7 - 6;    // Since we can only display 7 items with TextSize=3
-          scrollyloc = scrollyloc + scrollyinc;  // move scroll indicator loc by adding increment to location
-        }
-        displayOPTIONS();                        // Refresh OPTIONS Screen
-      }                                          // Finished with Down Arrow
-    }                                            // Finished with Scroll Area
-  }                                              // Finished with Touch Pressure
+		*/
 
-*/
+	}
 
 }
 
@@ -800,6 +808,14 @@ void countTriggers() {
 	countedTriggers = counter;
 	//Serial.print("total triggers: ");
 	//Serial.println(countedTriggers);
+	
+	countedPages = countedTriggers/itemsPerPage;
+	if ((countedTriggers % itemsPerPage) > 0) {
+		countedPages++;
+	}
+	//Serial.print("total pages: ");
+	//Serial.println(countedPages);
+	
 }
 
 void updateGrid() {
@@ -814,6 +830,8 @@ void updateGrid() {
 	
 	int startAt = ((curPage-1)*itemsPerPage);
 	
+	tft.fillRect(0, 21, 320, 220, BLACK);
+
 	// Render Pagination
 	tft.fillRect(0, 220, 130, 20, WHITE);
 	tft.fillRect(190, 220, 130, 20, WHITE);
