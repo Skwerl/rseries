@@ -158,6 +158,7 @@ int rowsPerPage = 3;
 //  |-------------|
 
 char* gridTriggers[] = {
+	"Laugh",
 	"Alarm 1",
 	"Alarm 2",	
 	"Cantina Song",
@@ -508,9 +509,13 @@ void getTouch() {
 			//Serial.print("Touched item: ");
 			//Serial.print(touchedRow);
 			//Serial.print(",");
-			//Serial.println(touchedCol);
+			//Serial.print(touchedCol);
 
 			triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
+
+			//Serial.print(" (");
+			//Serial.print(triggerEvent);
+			//Serial.println(")");
 
 		}
 
