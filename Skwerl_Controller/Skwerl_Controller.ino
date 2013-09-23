@@ -74,7 +74,7 @@
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #define astromechName "R2-D2"
-#define VERSION "Forked 0.4.5"
+#define VERSION "0.5"
 #define OWNER "Skwerl"
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -188,18 +188,6 @@ int triggered;
 // not yet sure how to get this to return the right number... 
 //int totalTriggers = ((sizeof(gridTriggers)/sizeof(char))-1);
 
-                        // Controller shield battery monitor variables
-int analogVCCinput = 5; // RSeries Controller default VCC input is A5
-float R1 = 47000.0;     // >> resistance of R1 in ohms << the more accurate these values are
-float R2 = 24000.0;     // >> resistance of R2 in ohms << the more accurate the measurement will be
-float vout = 0.0;       // for voltage out measured analog input
-int VCCvalue = 0;       // used to hold the analog value coming out of the voltage divider
-float vin = 0.0;        // voltage calulcated... since the divider allows for 15 volts
-
-float vinSTRONG=3.4;    // If vin is above vinSTRONG display GREEN battery
-float vinWEAK=2.9;		// if vin is above vinWEAK display YELLOW otherwise display RED
-float vinDANGER=2.7;    // If 3.7v LiPo falls below this your in real danger.
-
 #define LCD_CS A3
 #define LCD_CD A2
 #define LCD_WR A1
@@ -289,17 +277,13 @@ boolean rxpacketstart=false;
 boolean txbegin=false;
 
 int t = 0;
-long rx1DBm;
 long lastrx1time;
 long lasttx1time;
 long nexttx1time;
 int rx1ErrorCount = 0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
 int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
 
-int RSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
-int RSSIpin = 6;					// Arduino PWM Digital Pin used to read PWM signal from XBee Pin 6 RSSI 6 to 6 KISS
-unsigned long RSSIduration;			// Used to store Pulse Width from RSSIpin
-int xbRSSI = 0;						// XBee Received packet Signal Strength Indicator, 0 means 0 Bars (No Signal)
+uint8_t xbRSSI;						// Used to store Pulse Width from RSSIpin
 
 int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
 
@@ -320,6 +304,21 @@ byte triggerEvent;
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+/* CONTROLLER BATTERY */
+
+int analogVCCinput = 5; // RSeries Controller default VCC input is A5
+float R1 = 47000.0;     // >> resistance of R1 in ohms << the more accurate these values are
+float R2 = 24000.0;     // >> resistance of R2 in ohms << the more accurate the measurement will be
+float vout = 0.0;       // for voltage out measured analog input
+int VCCvalue = 0;       // used to hold the analog value coming out of the voltage divider
+float vin = 0.0;        // voltage calulcated... since the divider allows for 15 volts
+
+float vinSTRONG = 3.4;	// If vin is above vinSTRONG display GREEN battery
+float vinWEAK = 2.9;	// if vin is above vinWEAK display YELLOW otherwise display RED
+float vinDANGER = 2.7;	// If 3.7v LiPo falls below this you're in real danger.
+
+/* TELEMETRY FROM RECEIVER */
+
 unsigned int rxVCC;
 unsigned int rxVCA;
 
@@ -334,16 +333,18 @@ unsigned char telemetryVCCLSB = 0;
 unsigned char telemetryVCAMSB = 0;
 unsigned char telemetryVCALSB = 0;
 
+/*
 float yellowVCC = 12.0;				// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
 float redVCC = 11.5;
 
 float yellowVCA = 50.0;				// If current goes ABOVE these thresholds, text will turn yellow then red.
 float redVCA = 65.0;
+*/
 
 long lastStatusBarUpdate = 0;
 long nextStatusBarUpdate = 0;
 
-int updateSTATUSdelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
+int updateStatusDelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
 
 int ProcessStateIndicator = 0;		// Alternates between 0 & 1 High
 
@@ -381,36 +382,22 @@ void setup() {
 	}  
 	
 	tft.begin(identifier);
-	
 	tft.setRotation(rotation); 
 	tft.fillScreen(BLACK);
 	
 	nunchuk.init();										// Initialize Nunchuk using I2C
 	
-	//displaySPLASH();									// Display Splash Screen...
+	//displaySplash();									// Display Splash Screen...
 	//delay(1500);										// ...for 1500 ms
-	tft.fillScreen(BLACK);								// Clear screen.
+	//tft.fillScreen(BLACK);							// Then clear screen.
 	
-	displayPOST();										// Display POST Routine on TFT
-	
-	// Serial.println("POST Finished Successfully");	// DEBUG CODE
-	
-	radiostatus = "OK";
-	//  dmmVCC=rxVCC/10.0;								// Convert telemetry into floats
-	//  dmmVCA=rxVCA/10.0;								// Convert telemetry into floats
-	
-	tft.fillScreen(BLACK);
-	
-	//  Serial.println("Display Status with BLUE");		// DEBUG CODE
-	displaySTATUS(WHITE);								// Displays status bar at TOP
-	//displaySCROLL();									// Displays scroll buttons
-	//displayOPTIONS();									// Display trigger Options
-
+	bootTests();										// Display POST Routine on TFT
 	countTriggers();
+
+	tft.fillScreen(BLACK);	
+	updateStatus();										// Displays status bar at TOP
 	updateGrid();
 
-	t=0;
-	//  pinMode(RSSIpin, INPUT);						// Setup RSSIpin as Digital Input for 
 	//  nextrx1time = millis();							// 
 	
 }
@@ -451,79 +438,15 @@ void loop() {
 	
 	TXdata();
 	delay(100);
-	displaySendclear();
+	displaySendClear();
 	
 	if (millis() >= nextStatusBarUpdate) {
-		updateSTATUSbar(BLUE);
+		updateStatus();
 	}
 
 }
 
-void getTouch() {  
-
-	int touchedRow;
-	int touchedCol;
-	
-	int touchedRelativeX;
-	int touchedRelativeY;
-
-	Point p = ts.getPoint();
-
-	//Serial.print("Registered touch, pressure: "); Serial.println(p.z);
-	//sensitivity = ts.pressureThreshhold; // Default?
-
-	if (p.z > sensitivity) {
-
-		Serial.print("RAW X = "); Serial.print(p.x);				// DEBUG CODE
-		Serial.print("\tY = "); Serial.print(p.y);					// DEBUG CODE
-		Serial.print("\tPressure = "); Serial.print(p.z);			// DEBUG CODE
-
-		// We also have to re-align LCD X&Y to Touch X&Y
-		touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);				// Notice mapping touchedY to p.x
-		touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);				// Notice mapping touchedX to p.y
-
-		Serial.print("\tTouched X = "); Serial.print(touchedX);		// DEBUG CODE
-		Serial.print("\tTouched Y = "); Serial.print(touchedY);		// DEBUG CODE
-		Serial.println(" ");										// DEBUG CODE
-		
-		if (touchedY >= 206 && touchedX < 160) {
-			curPage--;
-			if (curPage < 1) { curPage = countedPages; }
-			updateGrid();
-		}		
-
-		if (touchedY >= 206 && touchedX > 160) {
-			curPage++;
-			if (curPage > countedPages) { curPage = 1; }
-			updateGrid();
-		}		
-
-		if (touchedY >= 20 && touchedY <= 205) {
-
-			touchedRelativeX = touchedX;
-			touchedRelativeY = touchedY-20;
-
-			touchedRow = (touchedRelativeY/(186/rowsPerPage))+1;
-			touchedCol = (touchedRelativeX/(320/boxesPerRow))+1;
-
-			//Serial.print("Touched item: ");
-			//Serial.print(touchedRow);
-			//Serial.print(",");
-			//Serial.print(touchedCol);
-
-			triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
-
-			//Serial.print(" (");
-			//Serial.print(triggerEvent);
-			//Serial.println(")");
-
-		}
-
-	}
-
-}
-
-void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
+void displaySplash() {									// Display a Retro SPLASH Title Screen!
   tft.setCursor(40, 80);
   tft.setTextColor(WHITE);
   tft.setTextSize(3);
@@ -545,67 +468,147 @@ void displaySPLASH() {									// Display a Retro SPLASH Title Screen!
   tft.drawFastHLine(0, 239, tft.width(), BLUE);   
 }
 
-void displaySTATUS(uint16_t color) {
+void bootTests() {									// Power Up Self Test and Init
 
+	presstocontinue=true;								// User must press something to continue?
+	controllerstatus=false;								// Nunchuk connected?
+	transmitterstatus=false;							// Are we transmitting?
+	networkstatus=false;								// Are we networked?
+	receiverstatus=false;								// Are we receiving?
+	telemetrystatus=false;								// Are we receiving telemetry?
+	
 	tft.setCursor(0, 0);
-	tft.setTextColor(color);
+	tft.setTextColor(GREEN);
 	tft.setTextSize(2);
-	tft.println(astromechName);
-	displayBATT();
-	displayRSSI();
-	tft.setCursor(128, 0);
-	if (radiostatus == "OK") {
-		tft.setTextColor(GREEN);
-	} else {
-		tft.setTextColor(RED);
-	}
-	tft.println(radiostatus);
+	tft.println("Testing...");
+	tft.setCursor(20,20);
+	tft.println("Wii Nunchuk:");
+	tft.setCursor(220,20);
+	tft.setTextColor(RED);
+	tft.println("...");
 	
-	if (ProcessStateIndicator == 0) {		// Display a ball heart beat in between Radio Status & dmmVCC
-		tft.fillCircle(160,7, 5, BLUE);          
-		ProcessStateIndicator = 1;
-	} else {
-		tft.fillCircle(160,7, 5, RED);
-		ProcessStateIndicator = 0;
-	}
-	
-	tft.setCursor(170, 0);
-	
-	tft.setTextColor(GREEN);				// Default dmmVCC text color
-	if (dmmVCC <= yellowVCC) {				// If dmmVCC drops BELOW, change text to YELLOW or RED
-		tft.setTextColor(YELLOW);
-	}
-	if (dmmVCC <= redVCC) {
-		tft.setTextColor(RED);
+	while(controllerstatus == false) {
+		nunchuk.update();								// ALL data from nunchuk is continually sent to Receiver
+		joyx = nunchuk.analogX;							// ranges from approx 30 - 220
+		joyy = nunchuk.analogY;							// ranges from approx 29 - 230
+		accx = nunchuk.accelX;							// ranges from approx 70 - 182
+		accy = nunchuk.accelY;							// ranges from approx 65 - 173
+		accz = nunchuk.accelZ;							// ranges from approx 65 - 173
+		zbut = nunchuk.zButton;							// either 0 or 1
+		cbut = nunchuk.cButton;							// either 0 or 1
+		if (joyx > 0 && joyy > 0) {
+			controllerstatus = true;
+		}
 	}
 	
-	tft.setTextSize(2);
-	tft.println(dmmVCC,2);					// Display dmmVCC FLOAT 2 Places
-	tft.setCursor(230, 0);
-	tft.println("V");
+	tft.fillRect(220,20,100,17,BLACK);					// Clear Waiting Message
+	tft.setCursor(220,20);
+	tft.setTextColor(GREEN);
+	tft.println("OK!");
 	
-	tft.setTextColor(GREEN);				// Default dmmVCA text color
-	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
-		tft.setTextColor(YELLOW);
+	tft.setTextColor(GREEN);
+	tft.setCursor(20,40);
+	tft.println("Transmitter:");
+	tft.setCursor(220,40);
+	tft.setTextColor(RED);
+	tft.println("...");
+	
+	while(transmitterstatus == false) {
+		xbeeSL();										// Send an AT command via API mode
+		Serial.print("xbATResponse = ");				// DEBUG CODE
+		Serial.println(xbATResponse, HEX);				// DEBUG CODE
+		if (xbATResponse == 0x00) {						// to verify Coordinator XBee is setup and ready.
+			radiostatus = "OK";
+			transmitterstatus = true;
+			Serial.println("Transmitter Status Good");	// DEBUG CODE
+		}
 	}
-	if (dmmVCA >= redVCA) {
-		tft.setTextColor(RED);
+	
+	tft.fillRect(220, 40, 100, 17, BLACK);
+	tft.setCursor(220,40);
+	tft.setTextColor(GREEN);
+	tft.println("OK!");  
+
+	tft.setCursor(20,60);
+	tft.setTextColor(GREEN);
+	tft.println("Receiver:");
+	tft.setCursor(220,60);
+	tft.setTextColor(RED);
+	tft.println("Pinging");
+
+	while(receiverstatus == false) {
+		payload[0] = byte(0x90);						// joyx
+		payload[1] = byte(0x90);						// joyy
+		payload[2] = byte(0x90);						// accx
+		payload[3] = byte(0x90);						// accy
+		payload[4] = byte(0x90);						// accz
+		payload[5] = byte(0x00);						// zButton
+		payload[6] = byte(0x00);						// cButton
+		payload[7] = byte(0x00);						// TriggerEvent
+		payload[8] = byte(0x00);						// Future Use
+		xbee.send(zbTx);								// Send a Test Payload to Receiver
+		Serial.println("Sending test payload...");		// DEBUG CODE
+		if (xbee.readPacket(500)) {
+			if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
+				xbee.getResponse().getZBTxStatusResponse(txStatus);
+				if (txStatus.getDeliveryStatus() == SUCCESS) {
+					receiverstatus = true;
+				} else {
+					// Packet not received...
+				}
+			}
+		} else if (xbee.getResponse().isError()) {
+			// Error reading packet...
+		} else {
+			// TX status timeout...
+		}
+		delay(1000);
+	}
+	Serial.println("Receiver Responded, Status Good");   // DEBUG CODE
+	tft.fillRect(220, 60, 100, 17, BLACK);
+	tft.setCursor(220,60);
+	tft.setTextColor(GREEN);
+	tft.println("OK!");  
+
+	// Looking for the Volts & Amperage from Receiver (Router)
+	tft.setTextColor(GREEN);
+	tft.setCursor(20,80);
+	tft.println("Telemetry:");
+	tft.setCursor(220,80);
+	tft.setTextColor(RED);
+	tft.println("...");
+	
+	while(telemetrystatus == false) {
+		RXdata();
+		//Serial.print("POST Received Telemetry -->> rxVCC =");
+		//Serial.print(rxVCC);
+		//Serial.print("\trxVCA =");Serial.println(rxVCA);
+		if (rxVCC > 0 && rxVCA > 0) {
+			telemetrystatus = true;
+		}
 	}
 	
-	tft.setCursor(250, 0);
-	tft.println(dmmVCC,2);					// Display dmmVCA FLOAT 2 Places
-	tft.setCursor(310, 0);
-	tft.println("A");
+	tft.fillRect(220, 80, 100, 17, BLACK);// Clear Waiting Message
+	tft.setCursor(220,80);
+	tft.setTextColor(GREEN);
+	tft.println("OK!");  
 	
-	tft.drawFastHLine(0, 19, tft.width(), color);
-	
-	lastStatusBarUpdate = millis();			// Could remove this one now..
-	nextStatusBarUpdate = millis() + updateSTATUSdelay;
+	delay(1000);
 
 }
 
-void updateSTATUSbar(uint16_t color) {
+void updateStatus() {
 
+	tft.setCursor(0, 3);
+	tft.setTextColor(WHITE);
+	tft.setTextSize(2);
+	tft.println(astromechName);
+	tft.drawFastHLine(0, 19, tft.width(), WHITE);
+
+	displayRSSI();
+	displayBattery();
+
+	/*
 	tft.setTextSize(2);
 	displayBATT();
 	displayRSSI();
@@ -618,9 +621,11 @@ void updateSTATUSbar(uint16_t color) {
 	} else if (rx1ErrorCount >5 && radiostatus != "OK") {
 		tft.setTextColor(RED);
 	}
+	*/
 	
-	tft.println(radiostatus);				// Display the OK or RX or TX radio controll status.
-	
+	//tft.println(radiostatus);				// Display the OK or RX or TX radio controll status.
+
+	/*	
 	if (ProcessStateIndicator == 0) {		// Display a ball heart beat in between Radio Status & dmmVCC
 		tft.fillCircle(160,7, 5, BLUE);          
 		ProcessStateIndicator = 1;
@@ -628,24 +633,29 @@ void updateSTATUSbar(uint16_t color) {
 		tft.fillCircle(160,7, 5, RED);
 		ProcessStateIndicator = 0;
 	}
+	*/
 	
-	tft.setCursor(170, 0);
-	
-	tft.fillRect(170, 0, 59, 17, BLACK);
-	
-	tft.setTextColor(GREEN);				// Default dmmVCC text color
-	if (dmmVCC <= yellowVCC) {				// If dmmVCC drops BELOW, change text to YELLOW or RED
-		tft.setTextColor(YELLOW);
-	}
-	if (dmmVCC <= redVCC) {
-		tft.setTextColor(RED);
-	}
-	
-	tft.setTextSize(2);
-	tft.println(dmmVCC,2);					// Display dmmVCA FLOAT 2 Places
-	tft.setCursor(230, 0);
+	tft.fillRect(248, 0, 20, 18, BLACK);
+
+	tft.setCursor(248, 2);	
+	tft.setTextColor(GREEN);
+	if (dmmVCC < 5) { tft.setTextColor(GRAY); }
+	if (dmmVCC >= 7) { tft.setTextColor(RED); }
+	tft.setTextSize(1);
+	if (dmmVCC > 9.9) { tft.print("10+"); }
+	else { tft.print(dmmVCC,1); }
 	tft.println("V");
+
+	tft.setCursor(248, 10);	
+	tft.setTextColor(GREEN);
+	if (dmmVCC < 5) { tft.setTextColor(GRAY); }
+	if (dmmVCC >= 7) { tft.setTextColor(RED); }
+	tft.setTextSize(1);
+	if (dmmVCC > 9.9) { tft.print("10+"); }
+	else { tft.print(dmmVCC,1); }
+	tft.println("A");
 	
+	/*
 	tft.setTextColor(GREEN);				// Default dmmVCA text color
 	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
 		tft.setTextColor(YELLOW);
@@ -661,84 +671,11 @@ void updateSTATUSbar(uint16_t color) {
 	tft.setCursor(310, 0);
 	tft.println("A");
 
-	// lastStatusBarUpdate = millis();		// can remove this one now..
-	nextStatusBarUpdate = millis() + updateSTATUSdelay;
+	*/
+
+	nextStatusBarUpdate = millis() + updateStatusDelay;
 	
 }
-
-void displayRSSI() {                        // Display Received packet Signal Strength Indicator
-
-//  RSSIduration = pulseIn(RSSIpin, LOW, 200);  // with 200us timeout
-//  RSSIduration = pulseIn(6, HIGH);  // with 200us timeout
-
-RSSIduration = rx16.getRssi();
-
-//  Serial.print(millis());                                              // DEBUG CODE
-//  Serial.print("RSSIpin = ");Serial.println(RSSIpin, HEX);             // DEBUG CODE
-//  Serial.print("\tRSSIduration = ");Serial.println(RSSIduration);        // DEBUG CODE
-
-// rx1DBm = (41 * RSSIduration) - 5928;
- 
- rx1DBm = RSSIduration;
- 
-// Serial.print("rx1DBm = ");Serial.println(rx1DBm);             // DEBUG CODE
- 
-//delay(100);
-//RSSI (in dBm) is converted to PWM counts using the following equation: PWM counts = (41 * RSSI_Unsigned) - 5928
-                                                         // Signal Bars, Well its good enough for Apple.
-  if (rx1DBm == 0) {                                     // No Signal Text
-    tft.fillRect(100, 0, 22, 17, BLACK);                 // Erase Signal Bar area
-    tft.setTextSize(1);
-    tft.setTextColor(WHITE);
-    tft.setCursor(100, 0);
-    tft.println("No");
-    tft.setCursor(100, 9);
-    tft.println("Sgnl");
-    tft.setTextSize(2);
-    } else if (rx1DBm >=1 && rx1DBm <=20) {RSSI=1;}                 // Signal Bars, Well its good enough for Apple.
-      else if (rx1DBm >=21 && rx1DBm<=50) {RSSI=2;}
-      else if (rx1DBm >=51 && rx1DBm<=100) {RSSI=3;}
-      else if (rx1DBm >=101 && rx1DBm<=175) {RSSI=4;}
-      else if (rx1DBm >=176 && rx1DBm<=255) {RSSI=5;}
-     
-  tft.fillRect(100, 0, 22, 17, BLACK);                 // Erase Signal Bar area
-
-  tft.drawFastVLine(100, 12, 2, GRAY);  // Signal =1 
-  tft.drawFastVLine(101, 12, 2, GRAY);
-  
-  tft.drawFastVLine(105, 10, 4, GRAY);  // Signal =2
-  tft.drawFastVLine(106, 10, 4, GRAY);
-  
-  tft.drawFastVLine(110, 8, 6, GRAY);  // Signal =3 
-  tft.drawFastVLine(111, 8, 6, GRAY);
-  
-  tft.drawFastVLine(115, 5, 9, GRAY);  // Signal =4 
-  tft.drawFastVLine(116, 5, 9, GRAY);
-  
-  tft.drawFastVLine(120, 1, 13, GRAY);  // Signal =5 
-  tft.drawFastVLine(121, 1, 13, GRAY);
-  
-  if (RSSI>=1) {
-    tft.drawFastVLine(100, 12, 2, WHITE);  // Signal =1 
-    tft.drawFastVLine(101, 12, 2, WHITE);
-  }  
-  if (RSSI>=2) {
-    tft.drawFastVLine(105, 10, 4, WHITE);  // Signal =2
-    tft.drawFastVLine(106, 10, 4, WHITE);
-  }
-  if (RSSI>=3) {
-    tft.drawFastVLine(110, 8, 6, WHITE);  // Signal =3 
-    tft.drawFastVLine(111, 8, 6, WHITE);
-  }
-  if (RSSI>=4) {
-    tft.drawFastVLine(115, 5, 9, WHITE);  // Signal =4 
-    tft.drawFastVLine(116, 5, 9, WHITE);
-  }
-  if (RSSI>=5) {
-    tft.drawFastVLine(120, 1, 13, WHITE);  // Signal =5 
-    tft.drawFastVLine(121, 1, 13, WHITE);
-  }
-  }
 
 void countTriggers() {
 	boolean counted = false;
@@ -809,203 +746,120 @@ void updateGrid() {
 
 }
 
-void displaySendclear() {
+void displaySendClear() {
 //	tft.fillRect(80, 21, 220, 17, BLACK);		// Clear Trigger Message
 	triggerEvent=0;								// Zero out selection variables
 	zbut=0;
 	cbut=0;
 }
 
-void displayPOST() {									// Power Up Self Test and Init
+void getTouch() {  
 
-	presstocontinue=true;								// User must press something to continue?
-	controllerstatus=false;								// Nunchuk connected?
-	transmitterstatus=false;							// Are we transmitting?
-	networkstatus=false;								// Are we networked?
-	receiverstatus=false;								// Are we receiving?
-	telemetrystatus=false;								// Are we receiving telemetry?
+	int touchedRow;
+	int touchedCol;
 	
-	tft.setCursor(0, 0);
-	tft.setTextColor(GREEN);
-	tft.setTextSize(2);
-	tft.println("Testing...");
-	tft.setCursor(20,20);
-	tft.println("Wii Nunchuk:");
-	tft.setCursor(220,20);
-	tft.setTextColor(RED);
-	tft.println("...");
-	
-	while(controllerstatus == false) {
-		nunchuk.update();								// ALL data from nunchuk is continually sent to Receiver
-		joyx = nunchuk.analogX;							// ranges from approx 30 - 220
-		joyy = nunchuk.analogY;							// ranges from approx 29 - 230
-		accx = nunchuk.accelX;							// ranges from approx 70 - 182
-		accy = nunchuk.accelY;							// ranges from approx 65 - 173
-		accz = nunchuk.accelZ;							// ranges from approx 65 - 173
-		zbut = nunchuk.zButton;							// either 0 or 1
-		cbut = nunchuk.cButton;							// either 0 or 1
-		if (joyx > 0 && joyy > 0) {
-			controllerstatus = true;
-		}
-	}
-	
-	tft.fillRect(220,20,100,17,BLACK);					// Clear Waiting Message
-	tft.setCursor(220,20);
-	tft.setTextColor(GREEN);
-	tft.println("OK!");
-	
-	tft.setTextColor(GREEN);
-	tft.setCursor(20,40);
-	tft.println("Transmitter:");
-	tft.setCursor(220,40);
-	tft.setTextColor(RED);
-	tft.println("...");
-	
-	while(transmitterstatus == false) {
-		xbeeSL();										// Send an AT command via API mode
-		Serial.print("xbATResponse = ");				// DEBUG CODE
-		Serial.println(xbATResponse, HEX);				// DEBUG CODE
-		if (xbATResponse == 0x00) {						// to verify Coordinator XBee is setup and ready.
-			transmitterstatus = true;
-			Serial.println("Transmitter Status Good");	// DEBUG CODE
-		}
-	}
-	
-	tft.fillRect(220, 40, 100, 17, BLACK);
-	tft.setCursor(220,40);
-	tft.setTextColor(GREEN);
-	tft.println("OK!");  
+	int touchedRelativeX;
+	int touchedRelativeY;
 
-	tft.setCursor(20,60);
-	tft.setTextColor(GREEN);
-	tft.println("Receiver:");
-	tft.setCursor(220,60);
-	tft.setTextColor(RED);
-	tft.println("Pinging");
+	Point p = ts.getPoint();
 
-	while(receiverstatus == false) {
-		payload[0] = byte(0x90);						// joyx
-		payload[1] = byte(0x90);						// joyy
-		payload[2] = byte(0x90);						// accx
-		payload[3] = byte(0x90);						// accy
-		payload[4] = byte(0x90);						// accz
-		payload[5] = byte(0x00);						// zButton
-		payload[6] = byte(0x00);						// cButton
-		payload[7] = byte(0x00);						// TriggerEvent
-		payload[8] = byte(0x00);						// Future Use
-		xbee.send(zbTx);								// Send a Test Payload to Receiver
-		Serial.println("Sending test payload...");		// DEBUG CODE
-		if (xbee.readPacket(500)) {
-			if (xbee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
-				xbee.getResponse().getZBTxStatusResponse(txStatus);
-				if (txStatus.getDeliveryStatus() == SUCCESS) {
-					receiverstatus = true;
-				} else {
-					// Packet not received...
-				}
-			}
-		} else if (xbee.getResponse().isError()) {
-			// Error reading packet...
-		} else {
-			// TX status timeout...
-		}
-		delay(1000);
-	}
-	Serial.println("Receiver Responded, Status Good");   // DEBUG CODE
-	tft.fillRect(220, 60, 100, 17, BLACK);
-	tft.setCursor(220,60);
-	tft.setTextColor(GREEN);
-	tft.println("OK!");  
+	//Serial.print("Registered touch, pressure: "); Serial.println(p.z);
+	//sensitivity = ts.pressureThreshhold; // Default?
 
-	// Looking for the Volts & Amperage from Receiver (Router)
-	tft.setTextColor(GREEN);
-	tft.setCursor(20,80);
-	tft.println("Telemetry:");
-	tft.setCursor(220,80);
-	tft.setTextColor(RED);
-	tft.println("...");
-	
-	while(telemetrystatus == false) {
-		RXdata();
-		Serial.print("POST Received Telemetry -->> rxVCC =");
-		Serial.print(rxVCC);  // DEBUG CODE
-		Serial.print("\trxVCA =");Serial.println(rxVCA);                                  // DEBUG CODE
-		if (rxVCC > 0 && rxVCA > 0){
-			telemetrystatus = true;
+	if (p.z > sensitivity) {
+
+		Serial.print("RAW X = "); Serial.print(p.x);				// DEBUG CODE
+		Serial.print("\tY = "); Serial.print(p.y);					// DEBUG CODE
+		Serial.print("\tPressure = "); Serial.print(p.z);			// DEBUG CODE
+
+		// We also have to re-align LCD X&Y to Touch X&Y
+		touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);				// Notice mapping touchedY to p.x
+		touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);				// Notice mapping touchedX to p.y
+
+		Serial.print("\tTouched X = "); Serial.print(touchedX);		// DEBUG CODE
+		Serial.print("\tTouched Y = "); Serial.print(touchedY);		// DEBUG CODE
+		Serial.println(" ");										// DEBUG CODE
+		
+		if (touchedY >= 206 && touchedX < 160) {
+			curPage--;
+			if (curPage < 1) { curPage = countedPages; }
+			updateGrid();
+		}		
+
+		if (touchedY >= 206 && touchedX > 160) {
+			curPage++;
+			if (curPage > countedPages) { curPage = 1; }
+			updateGrid();
+		}		
+
+		if (touchedY >= 20 && touchedY <= 205) {
+
+			touchedRelativeX = touchedX;
+			touchedRelativeY = touchedY-20;
+
+			touchedRow = (touchedRelativeY/(186/rowsPerPage))+1;
+			touchedCol = (touchedRelativeX/(320/boxesPerRow))+1;
+
+			//Serial.print("Touched item: ");
+			//Serial.print(touchedRow);
+			//Serial.print(",");
+			//Serial.print(touchedCol);
+
+			triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
+
+			//Serial.print(" (");
+			//Serial.print(triggerEvent);
+			//Serial.println(")");
+
 		}
-		telemetrystatus = true;							// Screw it...
+
 	}
-	
-	tft.fillRect(220, 80, 100, 17, BLACK);// Clear Waiting Message
-	tft.setCursor(220,80);
-	tft.setTextColor(BLUE);
-	tft.println("Skip");  
-	
-	delay(50); // Wait 50msec second before continueing
 
 }
 
 void RXdata() {
  
-  xbee.readPacket(50); // wait 50msec to see if we received a packet
-  
-  if (xbee.getResponse().isAvailable()) {
-  if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-    xbee.getResponse().getZBRxResponse(rx);
+	xbee.readPacket(50);
+	
+	if (xbee.getResponse().isAvailable()) {
+	
+	//	if (xbee.getResponse().getApiId() == RX_64_RESPONSE || xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
+		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
 
+			Serial.println("Got ZB_RX_RESPONSE...");
 
-/*    To receive the 2 byte values of Telemetry.
-long -> byte[4]
+			xbee.getResponse().getZBRxResponse(rx);
 
-buf[0] = (byte) n;
-buf[1] = (byte) n >> 8;
-buf[2] = (byte) n >> 16;
-buf[3] = (byte) n >> 24;
-//
-// byte[4] -> long
-//long value = (unsigned long)(buf[4] << 24) | (buf[3] << 16) | (buf[2] << 8) | buf[1];
-*/
-//int telemetryvCC = (int)(rx.getData()[0]; << 8) | rx.getData[1];
-//int telemetryvCA = (int)(rx.getData()[2]; << 8) | rx.getData[3];
+			/*
+			Serial.print("Rx:");
+			Serial.print("\t");   Serial.print(rx.getData()[0]);
+			Serial.print("\t");   Serial.print(rx.getData()[1]);
+			Serial.print("\t");   Serial.print(rx.getData()[2]);
+			Serial.print("\t");   Serial.print(rx.getData()[3]);
+			Serial.print("\t");   Serial.print(rx.getData()[4]);
+			Serial.print("\t"); Serial.println(rx.getData()[5]);
+			Serial.println("\tReceived zbTx");
+			*/
 
-    telemetryVCCMSB = rx.getData()[0];
-    telemetryVCCLSB = rx.getData()[1];
-    Serial.print("\ttelemetryVCCMSB =");Serial.print(telemetryVCCMSB);  // DEBUG CODE
-    Serial.print("\ttelemetryVCCLSB =");Serial.print(telemetryVCCLSB);                      // DEBUG CODE
-  
-    
-    telemetryVCAMSB = rx.getData()[2];
-    telemetryVCALSB = rx.getData()[3];
-    
-    Serial.print("\t\ttelemetryVCAMSB =");Serial.print(telemetryVCAMSB);                        // DEBUG CODE
-    Serial.print("\ttelemetryVCALSB =");Serial.println(telemetryVCALSB);                      // DEBUG CODE
+			telemetryVCCMSB = rx.getData()[0];
+			telemetryVCCLSB = rx.getData()[1];
+			telemetryVCAMSB = rx.getData()[2];
+			telemetryVCALSB = rx.getData()[3];
 
+			rxVCC = (unsigned int)word(telemetryVCCMSB,telemetryVCCLSB);
+			rxVCA = (unsigned int)word(telemetryVCAMSB,telemetryVCALSB);
 
+			dmmVCC = (float)rxVCC/10.0;
+			dmmVCA = (float)rxVCA/10.0;
 
-    rxVCC = (unsigned int)word(telemetryVCCMSB,telemetryVCCLSB);
-    
-    rxVCA = (unsigned int)word(telemetryVCAMSB,telemetryVCALSB);
+			//Serial.print("Receiver Voltage: "); Serial.println(dmmVCC);
+			//Serial.print("Receiver Amperage: "); Serial.println(dmmVCA);
 
-//    Serial.print("\trxVCC =");Serial.print(rxVCC);                        // DEBUG CODE                                          // DEBUG CODE
-//    Serial.print("\trxVCA =");Serial.println(rxVCA);                      // DEBUG CODE
+		}
 
-
-    
-//    Serial.print("\ttelemetryVCAMSB =");                                                      // DEBUG CODE
-//    Serial.print(telemetryVCAMSB);                                                            // DEBUG CODE
-//    Serial.print("\ttelemetryVCALSB =");Serial.println(telemetryVCALSB);                      // DEBUG CODE
-
-
-
-      dmmVCC = (float)rxVCC / 10.0;                   // Float & move the point for Volts
-      dmmVCA = (float)rxVCA / 10.0;                   // float & move the point for Amps
-                  
-    Serial.print("Received Telemetry -->> rxVCC =");Serial.print(rxVCC);  // DEBUG CODE
-    Serial.print("\trxVCA =");Serial.println(rxVCA);                      // DEBUG CODE
-
-    }
-  }
- }
+	}
+	
+}
 
 void TXdata() {
 
@@ -1036,12 +890,6 @@ void TXdata() {
 
 void xbeeSL() {
 
-	// Serial.println("Running xbeeSL()...");
-
-	// Get Serial number Low (SL) of the Transmitter
-	// See Chapter 9, API Operation (~Page 99) of Digi 
-	// XBee/Xbee-PRO ZB RF Modules Manual for details
-	
 	atRequest.setCommand(slCmd);  
 	xbee.send(atRequest);
 
@@ -1082,31 +930,82 @@ void xbeeSL() {
 }
 
 void getVCC() {
-//    vin = random(80,100)/10.0;             // DEBUG CODE
-   VCCvalue = analogRead(analogVCCinput); // this must be between 0.0 and 5.0 - otherwise you'll let the blue smoke out of your ar
-   vout= (VCCvalue * 5.0)/1024.0;         //voltage coming out of the voltage divider
-   vin = vout / (R2/(R1+R2));             //voltage based on vout to display battery status
-// Serial.print("Battery Voltage =");Serial.println(vin,1);  // DEBUG CODE
+	
+	VCCvalue = analogRead(analogVCCinput);						// this must be between 0.0 and 5.0 - otherwise you'll let the blue smoke out of your ar
+	vout= (VCCvalue * 5.0)/1024.0;								//voltage coming out of the voltage divider
+	vin = vout / (R2/(R1+R2));									//voltage based on vout to display battery status
+	Serial.print("Battery Voltage: "); Serial.println(vin,1);  // DEBUG CODE
+	
+}
+
+void displayRSSI() {
+
+	xbRSSI = rx16.getRssi();
+	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+
+	//int RSSI = ((int)readRSSI)/4;
+	int RSSI = 4;
+
+	//Serial.print("readRSSI: "); Serial.println(readRSSI);
+	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+
+	tft.fillRect(298, 2, 22, 17, BLACK);
+
+	tft.drawFastVLine(298, 14, 2, GRAY);
+	tft.drawFastVLine(299, 14, 2, GRAY);
+	
+	tft.drawFastVLine(303, 12, 4, GRAY);
+	tft.drawFastVLine(304, 12, 4, GRAY);
+	
+	tft.drawFastVLine(308, 10, 6, GRAY);
+	tft.drawFastVLine(309, 10, 6, GRAY);
+	
+	tft.drawFastVLine(313, 7, 9, GRAY);
+	tft.drawFastVLine(314, 7, 9, GRAY);
+	
+	tft.drawFastVLine(318, 3, 13, GRAY);
+	tft.drawFastVLine(319, 3, 13, GRAY);
+	
+	if (RSSI>=1) {
+		tft.drawFastVLine(298, 14, 2, WHITE);			// Signal =1 
+		tft.drawFastVLine(299, 14, 2, WHITE);
+	}  
+	if (RSSI>=2) {
+		tft.drawFastVLine(303, 12, 4, WHITE);			// Signal =2
+		tft.drawFastVLine(304, 12, 4, WHITE);
+	}
+	if (RSSI>=3) {
+		tft.drawFastVLine(308, 10, 6, WHITE);			// Signal =3 
+		tft.drawFastVLine(309, 10, 6, WHITE);
+	}
+	if (RSSI>=4) {
+		tft.drawFastVLine(313, 7, 9, WHITE);			// Signal =4 
+		tft.drawFastVLine(314, 7, 9, WHITE);
+	}
+	if (RSSI>=5) {
+		tft.drawFastVLine(318, 3, 13, WHITE);			// Signal =5 
+		tft.drawFastVLine(319, 3, 13, WHITE);
+	}
 
 }
 
-void displayBATT() {                        			// Display Local Battery Status
+void displayBattery() {
 
 	getVCC();
 	
-	tft.fillRect(84, 0, 9, 17, BLACK);       			// Erase Battery Status area
+	tft.fillRect(275, 0, 9, 17, BLACK);       			// Erase Battery Status area
 	
 	// Draw the battery outline in white
-	tft.drawFastHLine(86, 0, 4, WHITE);					// This is the little top of the battery
-	tft.drawFastHLine(86, 1, 4, WHITE);
-	tft.drawRect(84, 2, 8, 15, WHITE);					// Body of the battery
+	tft.drawFastHLine(277, 0, 4, WHITE);				// This is the little top of the battery
+	tft.drawFastHLine(277, 1, 4, WHITE);
+	tft.drawRect(275, 2, 8, 15, WHITE);					// Body of the battery
 	
 	if (vin >= vinSTRONG) {   
-		tft.fillRect(85, 3, 6, 14, GREEN);				// If Battery is strong then GREEN  
+		tft.fillRect(276, 3, 6, 14, GREEN);				// If Battery is strong then GREEN  
 	} else if (vin >=vinWEAK) {
-		tft.fillRect(85, 8, 6, 9, YELLOW);				// If Battery is medium then YELLOW
+		tft.fillRect(276, 8, 6, 9, YELLOW);				// If Battery is medium then YELLOW
 	} else {
-		tft.fillRect(85, 12, 6, 4, RED);				// If Battery is low then RED
+		tft.fillRect(276, 12, 6, 4, RED);				// If Battery is low then RED
 	}    
 
 }

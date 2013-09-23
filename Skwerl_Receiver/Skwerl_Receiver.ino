@@ -1,4 +1,32 @@
+/*
+ * Astromech RSeries Receiver for the R2 Builders Club
+ * Skwerl's Fork 
+ *  
+ * Heavily based on Michael Erwin's
+ * RSeries Open Controller Project
+ * http://code.google.com/p/rseries-open-control/
+ *
+ * Requires Arduino 1.0 IDE
+ *
+*/
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Global Config *////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+// Placeholder
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Libraries *////////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
 #include <XBee.h>
+#include <Servo.h>
+#include <Wire.h>
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 XBee xbee = XBee();
 XBeeResponse response = XBeeResponse();
@@ -7,9 +35,20 @@ ModemStatusResponse msr = ModemStatusResponse();
 
 uint8_t idCmd[] = {'I','D'};
 uint8_t opCmd[] = {'O','P'};
+uint8_t payload[] = { '0', '0', '0', '0', '0', '0'}; // Our XBee Payload of 6 values (txVCC=2, txVCA=2, future=2)
 
 AtCommandRequest atRequest = AtCommandRequest(opCmd);
 AtCommandResponse atResponse = AtCommandResponse();
+
+XBeeAddress64 addr64 = XBeeAddress64(0x0013a200, 0x40a8e69c);
+ZBTxRequest zbTx = ZBTxRequest(addr64, payload, sizeof(payload));
+ZBTxStatusResponse txStatus = ZBTxStatusResponse();
+
+byte xbAPIidResponse = 0x00;
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Control & Sound Configuration *////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 int triggerEvent;
@@ -17,6 +56,34 @@ int triggerEvent;
 int randNum;
 int mp3Byte = 0;
 boolean mp3Playing = false;
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int loop_cnt = 0;
+
+byte telemetryVCCMSB;									// MSB of Voltage VCC
+byte telemetryVCCLSB;									// LSB of Voltage VCC
+ 
+byte telemetryVCAMSB;									// MSB of Current VCA
+byte telemetryVCALSB;									// LSB of Current VCA
+
+unsigned int txVCC = 0;
+unsigned int txVCA = 0;
+
+int rxErrorCount = 0;
+
+int analogVCCinput = 5;									// RSeries Receiver default VCC input is A5
+float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
+float R2 = 24000.0;										// >> resistance of R2 in ohms << the more accurate the measurement will be
+int VCCvalue = 0;										// Used to hold the analog value coming out of the voltage divider
+float vout = 0.0;										// for voltage out measured analog input
+float vin = 0.0;										// Voltage calulcated, since the divider allows for 15 volts
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 void setup() {
 	
@@ -31,15 +98,21 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	Serial2.write('t');
-	Serial2.write(164);
+	startupChime();
 
-	delay(3000);
-	getOP();
+	//delay(3000);
+	//getOP();
 
 }
 
 void loop() {
+
+	loop_cnt++;
+
+	if (loop_cnt > 50) {
+		sendTelemetry();
+		loop_cnt = 0;
+	}
 
 	xbee.readPacket();
 	
@@ -54,24 +127,18 @@ void loop() {
 
 	if (xbee.getResponse().isAvailable()) {
 		//Serial.println("Got something...");
-
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-			//Serial.println("Got a ZB RX Packet...");
+			Serial.println("Got a ZB RX Packet...");
 			xbee.getResponse().getZBRxResponse(rx);
-			
 			handleEvent();
-			
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
-				//Serial.println("Sender got ACK");  
+				Serial.println("Sender got ACK");  
 			} else {
-				//Serial.println("Sender did not get ACK");  
+				Serial.println("Sender did not get ACK");  
 			}
-
 			// Set dataLed PWM to value of the first byte in the data
 			// analogWrite(dataLed, rx.getData(0));
-
 		} else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {
-
 			xbee.getResponse().getModemStatusResponse(msr);
 			// The local XBee sends this response on certain events, like association/dissociation
 			if (msr.getStatus() == ASSOCIATED) {
@@ -89,7 +156,6 @@ void loop() {
 		Serial.print("Error reading packet.  Error code: ");  
 		Serial.println(xbee.getResponse().getErrorCode());
 	}
-
 }
 
 void handleEvent() {
@@ -206,6 +272,91 @@ void handleEvent() {
 
 }
 
+void startupChime() {
+
+	// This function can execute any chime or sequence
+	// You wish to see/hear when your droid comes online
+
+	Serial2.write('t');
+	//Serial2.write(164);
+	Serial2.write(15);
+
+}
+
+void playSound(int sample) {
+	if (mp3Playing == false) {
+		Serial.print("Playing sample #");
+		Serial.println(sample);
+		Serial2.write('t');
+		Serial2.write(sample);
+		mp3Playing = true;
+	}
+}
+
+void stopSound() {
+	if (mp3Playing == true) {
+		Serial.println("Stop");
+		Serial2.write('O');
+		mp3Playing = false;
+	}
+}
+
+void sendTelemetry() {
+
+	getVCC();
+	getVCA();
+	
+	Serial.print("txVCC="); Serial.print(txVCC);
+	Serial.print("\ttxVCA="); Serial.println(txVCA);
+
+	// Take the value of stored in txVCC & txVCA, and convert them to MSB & LSB 2 bytes via a bitshift operation 
+	telemetryVCCMSB = (txVCC >> 8) & 0xFF;  
+	telemetryVCCLSB = txVCC & 0xFF;
+
+	telemetryVCAMSB = (txVCA >> 8) & 0xFF;  
+	telemetryVCALSB = txVCA & 0xFF;
+
+	/*
+	//  NOTE:  To make the 2 Byte (MSB & LSB) values back into an int use the following code:    
+	int telemetryVCC = (int)(word(telemetryVCCMSB,telemetryVCCLSB));    
+	int telemetryVCA = (int)(word(telemetryVCAMSB,telemetryVCALSB));
+	*/
+	
+	payload[0] = telemetryVCCMSB;						// MSB of txVCC Voltage from Receiver. Test Voltage sent is 136 as a 2 byte byte 0x88h, this will get divided by 10
+	payload[1] = telemetryVCCLSB;						// LSB of txVCC
+	payload[2] = telemetryVCAMSB;						// MSB of txVCA Amperage from Receiver. 
+	payload[3] = telemetryVCALSB;						// LSB of txVCA
+	payload[4] = '1';									// Future Use - User usable
+	payload[5] = '2';									// Future Use - Transmitting RX Error codes back to the controller
+	
+	xbee.send(zbTx); 
+
+	Serial.print("Tx:");
+	Serial.print("\t");   Serial.print(payload[0]);
+	Serial.print("\t");   Serial.print(payload[1]);
+	Serial.print("\t");   Serial.print(payload[2]);
+	Serial.print("\t");   Serial.print(payload[3]);
+	Serial.print("\t");   Serial.print(payload[4]);
+	Serial.print("\t"); Serial.println(payload[5]);
+	Serial.println("\tSent zbTx");
+
+}
+
+void getVCC() {
+
+	VCCvalue = analogRead(analogVCCinput);
+	vout = (VCCvalue * 5.0)/1024.0;						// Voltage coming out of the voltage divider
+	vin = vout / (R2/(R1+R2));							// Voltage based on vout to send to Controller
+	txVCC = (vin)*10;									
+
+	//Serial.print("Receiver Voltage: "); Serial.print(vin); Serial.print("\t"); Serial.println(txVCC);
+
+}
+  
+void getVCA() {
+	txVCA = random(1,999);
+}  
+
 void getOP() {
 
 	atRequest.setCommand(opCmd);  
@@ -234,22 +385,4 @@ void getOP() {
 		}
 	}
 
-}
-
-void playSound(int sample) {
-	if (mp3Playing == false) {
-		Serial.print("Playing sample #");
-		Serial.println(sample);
-		Serial2.write('t');
-		Serial2.write(sample);
-		mp3Playing = true;
-	}
-}
-
-void stopSound() {
-	if (mp3Playing == true) {
-		Serial.println("Stop");
-		Serial2.write('O');
-		mp3Playing = false;
-	}
 }
