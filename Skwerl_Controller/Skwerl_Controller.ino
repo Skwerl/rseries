@@ -304,26 +304,23 @@ byte triggerEvent;
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+int analogVCCinput = 5;									// RSeries Controller default VCC input is A5
+float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
+float R2 = 24000.0;										// >> resistance of R2 in ohms << the more accurate the measurement will be
+
 /* CONTROLLER BATTERY */
 
-int analogVCCinput = 5; // RSeries Controller default VCC input is A5
-float R1 = 47000.0;     // >> resistance of R1 in ohms << the more accurate these values are
-float R2 = 24000.0;     // >> resistance of R2 in ohms << the more accurate the measurement will be
-float vout = 0.0;       // for voltage out measured analog input
-int VCCvalue = 0;       // used to hold the analog value coming out of the voltage divider
-float vin = 0.0;        // voltage calulcated... since the divider allows for 15 volts
-
-float vinSTRONG = 3.4;	// If vin is above vinSTRONG display GREEN battery
-float vinWEAK = 2.9;	// if vin is above vinWEAK display YELLOW otherwise display RED
-float vinDANGER = 2.7;	// If 3.7v LiPo falls below this you're in real danger.
+unsigned int txVCC = 0;
+unsigned int txVCA = 0;
+float txVCCout;											// Display variable for Voltage from Receiver
+float txVCAout;											// Display variable for Amperage from Receiver
 
 /* TELEMETRY FROM RECEIVER */
 
 unsigned int rxVCC;
 unsigned int rxVCA;
-
-float dmmVCC;						// Display variable for Voltage from Receiver
-float dmmVCA;						// Display variable for Amperage from Receiver
+float rxVCCout;											// Display variable for Voltage from Receiver
+float rxVCAout;											// Display variable for Amperage from Receiver
 
 float previousdmmVCC = 00.0;
 float previousdmmVCA = 00.0;
@@ -333,20 +330,24 @@ unsigned char telemetryVCCLSB = 0;
 unsigned char telemetryVCAMSB = 0;
 unsigned char telemetryVCALSB = 0;
 
+float vinSTRONG = 3.4;									// If vin is above vinSTRONG display GREEN battery
+float vinWEAK = 2.9;									// if vin is above vinWEAK display YELLOW otherwise display RED
+float vinDANGER = 2.7;									// If 3.7v LiPo falls below this you're in real danger.
+
 /*
-float yellowVCC = 12.0;				// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
+float yellowVCC = 12.0;									// If RX voltage drops BELOW these thresholds, text will turn yellow then red.
 float redVCC = 11.5;
 
-float yellowVCA = 50.0;				// If current goes ABOVE these thresholds, text will turn yellow then red.
+float yellowVCA = 50.0;									// If current goes ABOVE these thresholds, text will turn yellow then red.
 float redVCA = 65.0;
 */
 
 long lastStatusBarUpdate = 0;
 long nextStatusBarUpdate = 0;
 
-int updateStatusDelay = 3500;		// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
+int updateStatusDelay = 3500;							// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
 
-int ProcessStateIndicator = 0;		// Alternates between 0 & 1 High
+int ProcessStateIndicator = 0;							// Alternates between 0 & 1 High
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
@@ -404,8 +405,9 @@ void setup() {
 
 void loop() {
 
+	getVCC();
 	RXdata();
-		
+
 	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
 	joyx = map(nunchuk.analogX, chan1Min, chan1Max, 60, 120);	// Channel 1 joyx & Channel 2 joyy from NunChuck Joystick
 	joyy = map(nunchuk.analogY, chan2Min, chan2Max, 120, 60);	// Map it to Min & Max of each channel
@@ -597,6 +599,28 @@ void bootTests() {									// Power Up Self Test and Init
 
 }
 
+void countTriggers() {
+	boolean counted = false;
+	int counter = -1;
+	while(counted == false) {
+		counter++;
+		if (gridTriggers[counter] == "***END***") {
+			counted = true;
+		}
+	}
+	countedTriggers = counter;
+	//Serial.print("total triggers: ");
+	//Serial.println(countedTriggers);
+	
+	countedPages = countedTriggers/itemsPerPage;
+	if ((countedTriggers % itemsPerPage) > 0) {
+		countedPages++;
+	}
+	//Serial.print("total pages: ");
+	//Serial.println(countedPages);
+	
+}
+
 void updateStatus() {
 
 	tft.setCursor(0, 3);
@@ -605,8 +629,9 @@ void updateStatus() {
 	tft.println(astromechName);
 	tft.drawFastHLine(0, 19, tft.width(), WHITE);
 
-	displayRSSI();
-	displayBattery();
+	updateRSSI();
+	updateBattery(175,txVCCout,"TX");
+	updateBattery(235,rxVCCout,"RX");
 
 	/*
 	tft.setTextSize(2);
@@ -634,27 +659,7 @@ void updateStatus() {
 		ProcessStateIndicator = 0;
 	}
 	*/
-	
-	tft.fillRect(248, 0, 20, 18, BLACK);
-
-	tft.setCursor(248, 2);	
-	tft.setTextColor(GREEN);
-	if (dmmVCC < 5) { tft.setTextColor(GRAY); }
-	if (dmmVCC >= 7) { tft.setTextColor(RED); }
-	tft.setTextSize(1);
-	if (dmmVCC > 9.9) { tft.print("10+"); }
-	else { tft.print(dmmVCC,1); }
-	tft.println("V");
-
-	tft.setCursor(248, 10);	
-	tft.setTextColor(GREEN);
-	if (dmmVCC < 5) { tft.setTextColor(GRAY); }
-	if (dmmVCC >= 7) { tft.setTextColor(RED); }
-	tft.setTextSize(1);
-	if (dmmVCC > 9.9) { tft.print("10+"); }
-	else { tft.print(dmmVCC,1); }
-	tft.println("A");
-	
+		
 	/*
 	tft.setTextColor(GREEN);				// Default dmmVCA text color
 	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
@@ -674,28 +679,6 @@ void updateStatus() {
 	*/
 
 	nextStatusBarUpdate = millis() + updateStatusDelay;
-	
-}
-
-void countTriggers() {
-	boolean counted = false;
-	int counter = -1;
-	while(counted == false) {
-		counter++;
-		if (gridTriggers[counter] == "***END***") {
-			counted = true;
-		}
-	}
-	countedTriggers = counter;
-	//Serial.print("total triggers: ");
-	//Serial.println(countedTriggers);
-	
-	countedPages = countedTriggers/itemsPerPage;
-	if ((countedTriggers % itemsPerPage) > 0) {
-		countedPages++;
-	}
-	//Serial.print("total pages: ");
-	//Serial.println(countedPages);
 	
 }
 
@@ -744,6 +727,105 @@ void updateGrid() {
 
 	}
 
+}
+
+void updateRSSI() {
+
+	xbRSSI = rx16.getRssi();
+	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+
+	//int RSSI = ((int)readRSSI)/4;
+	int RSSI = 4;
+
+	//Serial.print("readRSSI: "); Serial.println(readRSSI);
+	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+
+	tft.fillRect(298, 2, 22, 17, BLACK);
+
+	tft.drawFastVLine(298, 14, 2, GRAY);
+	tft.drawFastVLine(299, 14, 2, GRAY);
+	
+	tft.drawFastVLine(303, 12, 4, GRAY);
+	tft.drawFastVLine(304, 12, 4, GRAY);
+	
+	tft.drawFastVLine(308, 10, 6, GRAY);
+	tft.drawFastVLine(309, 10, 6, GRAY);
+	
+	tft.drawFastVLine(313, 7, 9, GRAY);
+	tft.drawFastVLine(314, 7, 9, GRAY);
+	
+	tft.drawFastVLine(318, 3, 13, GRAY);
+	tft.drawFastVLine(319, 3, 13, GRAY);
+	
+	if (RSSI>=1) {
+		tft.drawFastVLine(298, 14, 2, WHITE);			// Signal =1 
+		tft.drawFastVLine(299, 14, 2, WHITE);
+	}  
+	if (RSSI>=2) {
+		tft.drawFastVLine(303, 12, 4, WHITE);			// Signal =2
+		tft.drawFastVLine(304, 12, 4, WHITE);
+	}
+	if (RSSI>=3) {
+		tft.drawFastVLine(308, 10, 6, WHITE);			// Signal =3 
+		tft.drawFastVLine(309, 10, 6, WHITE);
+	}
+	if (RSSI>=4) {
+		tft.drawFastVLine(313, 7, 9, WHITE);			// Signal =4 
+		tft.drawFastVLine(314, 7, 9, WHITE);
+	}
+	if (RSSI>=5) {
+		tft.drawFastVLine(318, 3, 13, WHITE);			// Signal =5 
+		tft.drawFastVLine(319, 3, 13, WHITE);
+	}
+
+}
+
+void updateBattery(int battx, float vcc, String display) {
+
+	int battIcon = battx+27;
+
+	tft.fillRect(battIcon, 0, 9, 17, BLACK);       				// Erase Battery Status area
+	
+	// Draw the battery outline in white
+	tft.drawFastHLine((battIcon+2), 0, 4, WHITE);				// This is the little top of the battery
+	tft.drawFastHLine((battIcon+2), 1, 4, WHITE);
+	tft.drawRect(battIcon, 2, 8, 15, WHITE);					// Body of the battery
+	
+	if (vcc >= vinSTRONG) {   
+		tft.fillRect((battIcon+1), 3, 6, 14, GREEN);			// If Battery is strong then GREEN  
+	} else if (vcc >=vinWEAK) {
+		tft.fillRect((battIcon+1), 8, 6, 9, YELLOW);			// If Battery is medium then YELLOW
+	} else {
+		tft.fillRect((battIcon+1), 12, 6, 4, RED);				// If Battery is low then RED
+	}    
+
+	tft.setCursor((battx+39), 10);	
+	tft.setTextColor(WHITE);
+	tft.setTextSize(1);
+	tft.println(display);
+
+	/* VOLTAGE & AMPERAGE DISPLAY */
+
+	tft.fillRect(battx, 0, 20, 18, BLACK);
+
+	tft.setCursor(battx, 2);	
+	tft.setTextColor(GREEN);
+	if (vcc < 5) { tft.setTextColor(GRAY); }
+	if (vcc >= 7) { tft.setTextColor(RED); }
+	tft.setTextSize(1);
+	if (vcc > 9.9) { tft.print("10+"); }
+	else { tft.print(vcc,1); }
+	tft.println("V");
+
+	tft.setCursor(battx, 10);	
+	tft.setTextColor(GREEN);
+	if (vcc < 5) { tft.setTextColor(GRAY); }
+	if (vcc >= 7) { tft.setTextColor(RED); }
+	tft.setTextSize(1);
+	if (vcc > 9.9) { tft.print("10+"); }
+	else { tft.print(vcc,1); }
+	tft.println("A");
+	
 }
 
 void displaySendClear() {
@@ -849,11 +931,11 @@ void RXdata() {
 			rxVCC = (unsigned int)word(telemetryVCCMSB,telemetryVCCLSB);
 			rxVCA = (unsigned int)word(telemetryVCAMSB,telemetryVCALSB);
 
-			dmmVCC = (float)rxVCC/10.0;
-			dmmVCA = (float)rxVCA/10.0;
+			rxVCCout = (float)rxVCC/10.0;
+			rxVCAout = (float)rxVCA/10.0;
 
-			//Serial.print("Receiver Voltage: "); Serial.println(dmmVCC);
-			//Serial.print("Receiver Amperage: "); Serial.println(dmmVCA);
+			Serial.print("Receiver Voltage: "); Serial.println(rxVCCout);
+			Serial.print("Receiver Amperage: "); Serial.println(rxVCAout);
 
 		}
 
@@ -930,84 +1012,21 @@ void xbeeSL() {
 }
 
 void getVCC() {
+
+	int VCCvalue = analogRead(analogVCCinput);
+	float vout = 0.0;											// For voltage out measured analog input
+	float vcc = 0.0;											// Voltage calculated, since the divider allows for 15 volts
+
+	vout= (VCCvalue * 5.0)/1024.0;								// Voltage coming out of the voltage divider
+	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
+	txVCC = (vcc)*10;
 	
-	VCCvalue = analogRead(analogVCCinput);						// this must be between 0.0 and 5.0 - otherwise you'll let the blue smoke out of your ar
-	vout= (VCCvalue * 5.0)/1024.0;								//voltage coming out of the voltage divider
-	vin = vout / (R2/(R1+R2));									//voltage based on vout to display battery status
-	Serial.print("Battery Voltage: "); Serial.println(vin,1);  // DEBUG CODE
+	Serial.print("Battery Voltage: "); Serial.println(txVCC);
 	
 }
 
-void displayRSSI() {
-
-	xbRSSI = rx16.getRssi();
-	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
-
-	//int RSSI = ((int)readRSSI)/4;
-	int RSSI = 4;
-
-	//Serial.print("readRSSI: "); Serial.println(readRSSI);
-	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
-
-	tft.fillRect(298, 2, 22, 17, BLACK);
-
-	tft.drawFastVLine(298, 14, 2, GRAY);
-	tft.drawFastVLine(299, 14, 2, GRAY);
-	
-	tft.drawFastVLine(303, 12, 4, GRAY);
-	tft.drawFastVLine(304, 12, 4, GRAY);
-	
-	tft.drawFastVLine(308, 10, 6, GRAY);
-	tft.drawFastVLine(309, 10, 6, GRAY);
-	
-	tft.drawFastVLine(313, 7, 9, GRAY);
-	tft.drawFastVLine(314, 7, 9, GRAY);
-	
-	tft.drawFastVLine(318, 3, 13, GRAY);
-	tft.drawFastVLine(319, 3, 13, GRAY);
-	
-	if (RSSI>=1) {
-		tft.drawFastVLine(298, 14, 2, WHITE);			// Signal =1 
-		tft.drawFastVLine(299, 14, 2, WHITE);
-	}  
-	if (RSSI>=2) {
-		tft.drawFastVLine(303, 12, 4, WHITE);			// Signal =2
-		tft.drawFastVLine(304, 12, 4, WHITE);
-	}
-	if (RSSI>=3) {
-		tft.drawFastVLine(308, 10, 6, WHITE);			// Signal =3 
-		tft.drawFastVLine(309, 10, 6, WHITE);
-	}
-	if (RSSI>=4) {
-		tft.drawFastVLine(313, 7, 9, WHITE);			// Signal =4 
-		tft.drawFastVLine(314, 7, 9, WHITE);
-	}
-	if (RSSI>=5) {
-		tft.drawFastVLine(318, 3, 13, WHITE);			// Signal =5 
-		tft.drawFastVLine(319, 3, 13, WHITE);
-	}
-
-}
-
-void displayBattery() {
-
-	getVCC();
-	
-	tft.fillRect(275, 0, 9, 17, BLACK);       			// Erase Battery Status area
-	
-	// Draw the battery outline in white
-	tft.drawFastHLine(277, 0, 4, WHITE);				// This is the little top of the battery
-	tft.drawFastHLine(277, 1, 4, WHITE);
-	tft.drawRect(275, 2, 8, 15, WHITE);					// Body of the battery
-	
-	if (vin >= vinSTRONG) {   
-		tft.fillRect(276, 3, 6, 14, GREEN);				// If Battery is strong then GREEN  
-	} else if (vin >=vinWEAK) {
-		tft.fillRect(276, 8, 6, 9, YELLOW);				// If Battery is medium then YELLOW
-	} else {
-		tft.fillRect(276, 12, 6, 4, RED);				// If Battery is low then RED
-	}    
-
+void getVCA() {
+	//VCAvalue = random(1,999);
 }
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/

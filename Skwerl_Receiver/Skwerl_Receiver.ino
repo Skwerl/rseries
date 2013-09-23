@@ -77,9 +77,6 @@ int rxErrorCount = 0;
 int analogVCCinput = 5;									// RSeries Receiver default VCC input is A5
 float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
 float R2 = 24000.0;										// >> resistance of R2 in ohms << the more accurate the measurement will be
-int VCCvalue = 0;										// Used to hold the analog value coming out of the voltage divider
-float vout = 0.0;										// for voltage out measured analog input
-float vin = 0.0;										// Voltage calulcated, since the divider allows for 15 volts
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
@@ -344,13 +341,16 @@ void sendTelemetry() {
 
 void getVCC() {
 
-	VCCvalue = analogRead(analogVCCinput);
-	vout = (VCCvalue * 5.0)/1024.0;						// Voltage coming out of the voltage divider
-	vin = vout / (R2/(R1+R2));							// Voltage based on vout to send to Controller
-	txVCC = (vin)*10;									
+	int VCCvalue = analogRead(analogVCCinput);
+	float vout = 0.0;											// For voltage out measured analog input
+	float vcc = 0.0;											// Voltage calculated, since the divider allows for 15 volts
 
-	//Serial.print("Receiver Voltage: "); Serial.print(vin); Serial.print("\t"); Serial.println(txVCC);
-
+	vout= (VCCvalue * 5.0)/1024.0;								// Voltage coming out of the voltage divider
+	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
+	txVCC = (vcc)*10;
+	
+	Serial.print("Battery Voltage: "); Serial.println(txVCC);
+	
 }
   
 void getVCA() {
