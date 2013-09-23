@@ -217,54 +217,62 @@ void handleEvent() {
 		// Any touch screen triggers?
 
 		case 1:
-			playSound(43);				
+			playSound(15);				
 			break;
 		case 2:
-			playSound(150);				
+			playSound(15);				
 			break;
 		case 3:
-			playSound(151);				
+			playSound(15);				
 			break;
 		case 4:
-			playSound(152);				
+			playSound(43);				
 			break;
 		case 5:
-			playSound(153);				
+			playSound(150);				
 			break;
 		case 6:
-			playSound(154);				
+			playSound(151);				
 			break;
 		case 7:
-			playSound(155);				
+			playSound(152);				
 			break;
 		case 8:
-			playSound(156);				
+			playSound(153);				
 			break;
 		case 9:
-			playSound(157);				
+			playSound(154);				
 			break;
 		case 10:
-			playSound(158);				
+			playSound(155);				
 			break;
 		case 11:
-			playSound(159);				
+			playSound(156);				
 			break;
 		case 12:
-			playSound(160);				
+			playSound(157);				
 			break;
 		case 13:
-			playSound(161);				
+			playSound(158);				
 			break;
 		case 14:
-			playSound(162);				
+			playSound(159);				
 			break;
 		case 15:
-			playSound(163);				
+			playSound(160);				
 			break;
 		case 16:
+			playSound(161);				
+			break;
+		case 17:
+			playSound(162);				
+			break;
+		case 18:
+			playSound(163);				
+			break;
+		case 19:
 			playSound(164);				
 			break;
-
 	}
 
 }

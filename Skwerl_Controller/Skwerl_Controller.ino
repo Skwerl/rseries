@@ -70,14 +70,6 @@
 */
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
-///////////////////////* Global Config *////////////////////////////////////////////////////////////
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
-
-#define astromechName "R2-D2"
-#define VERSION "0.5"
-#define OWNER "Skwerl"
-
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Libraries *////////////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
@@ -89,6 +81,53 @@
 #include <XBee.h>               
 #include <Wire.h>               // Used to read the I2C data from Nunchuck
 #include <ArduinoNunchuk.h>     // Gabriel Bianconi @ http://www.gabrielbianconi.com/projects/arduinonunchuk/
+#include <HashMap.h>			// http://playground.arduino.cc/Code/HashMap#Download
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Global Config *////////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+#define astromechName "R2-D2"
+#define VERSION "0.5"
+#define OWNER "Skwerl"
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Trigger Configuration *////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+#define TRIGGER_LIMIT 251
+
+// Until TX payload has been reworked, we have a limit of 251 triggers.
+// Trigger names should be 13 characters or less.
+//  |-------------|
+char* gridTriggers[] = {
+	"Sticky 1",
+	"Sticky 2",
+	"Sticky 3",
+	"Laugh",
+	"Alarm 1",
+	"Alarm 2",	
+	"Cantina Song",
+	"Doot Doot",
+	"Failure",
+	"Humming",
+	"Leia Message",
+	"Patrol",
+	"Scream 1",
+	"Scream 2",
+	"Scream 3",
+	"Scream 4",
+	"Processing",
+	"Short Circuit",
+	"Startup Sound",
+	"***END***" // Ignore
+};
+
+int hashMapIndex = 0;
+HashType<int,boolean> hashRawArray[TRIGGER_LIMIT]; 
+HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TRIGGER_LIMIT); 
+
+int stickyTriggers[] = { 1,2,3,9 };
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* RSeries Configuration *////////////////////////////////////////////////////
@@ -152,30 +191,6 @@ int loop_cnt=0;
 
 int boxesPerRow = 3;
 int rowsPerPage = 3;
-
-// Until TX payload has been reworked, we have a limit of 251 triggers.
-// Trigger names should be 13 characters or less.
-//  |-------------|
-
-char* gridTriggers[] = {
-	"Laugh",
-	"Alarm 1",
-	"Alarm 2",	
-	"Cantina Song",
-	"Doot Doot",
-	"Failure",
-	"Humming",
-	"Leia Message",
-	"Patrol",
-	"Scream 1",
-	"Scream 2",
-	"Scream 3",
-	"Scream 4",
-	"Processing",
-	"Short Circuit",
-	"Startup Sound",
-	"***END***" // Ignore
-};
 
 int itemsPerPage = boxesPerRow*rowsPerPage;
 int countedTriggers = 0;
@@ -355,14 +370,16 @@ int ProcessStateIndicator = 0;							// Alternates between 0 & 1 High
 
 void setup() {
 
-	Serial.begin(9600);									// DEBUG CODE
+	Serial.begin(9600);
 
 	Serial1.begin(xbeebps);
 	xbee.setSerial(Serial1);							// Setup Xbee to use Serial1
 	xbee.begin(xbeebps);								// Setup Xbee to begin at 19200
 	
 	pinMode(analogVCCinput, INPUT);
-	
+
+	countTriggers();									// Process trigger arrays
+
 	tft.reset();										// A4 must be connected to TFT Break out Pin 7
 
 	// Prep debugger...
@@ -381,7 +398,7 @@ void setup() {
 		Serial.println(identifier, HEX);
 		while (1);
 	}  
-	
+
 	tft.begin(identifier);
 	tft.setRotation(rotation); 
 	tft.fillScreen(BLACK);
@@ -393,7 +410,6 @@ void setup() {
 	//tft.fillScreen(BLACK);							// Then clear screen.
 	
 	bootTests();										// Display POST Routine on TFT
-	countTriggers();
 
 	tft.fillScreen(BLACK);	
 	updateStatus();										// Displays status bar at TOP
@@ -599,28 +615,6 @@ void bootTests() {									// Power Up Self Test and Init
 
 }
 
-void countTriggers() {
-	boolean counted = false;
-	int counter = -1;
-	while(counted == false) {
-		counter++;
-		if (gridTriggers[counter] == "***END***") {
-			counted = true;
-		}
-	}
-	countedTriggers = counter;
-	//Serial.print("total triggers: ");
-	//Serial.println(countedTriggers);
-	
-	countedPages = countedTriggers/itemsPerPage;
-	if ((countedTriggers % itemsPerPage) > 0) {
-		countedPages++;
-	}
-	//Serial.print("total pages: ");
-	//Serial.println(countedPages);
-	
-}
-
 void updateStatus() {
 
 	tft.setCursor(0, 3);
@@ -691,6 +685,10 @@ void updateGrid() {
 	int boxHeight = 52;
 	int boxMargin = 10;
 	int colIndex = 1;
+	int buttonId;
+
+	int stickyIndex;
+	boolean stickyFlag;
 	
 	startAt = ((curPage-1)*itemsPerPage);
 	
@@ -714,6 +712,19 @@ void updateGrid() {
 
 		tft.fillRect(xOffset, yOffset, boxWidth, boxHeight, GRAY);
 		
+		stickyFlag = stickyHash.getValueOf(i);
+		Serial.print("Rendering trigger ID# "); Serial.println(i);
+		Serial.print("Sticky Status: "); Serial.println(stickyFlag);
+
+		buttonId = i+1;
+		stickyIndex = arrayLookup(stickyTriggers, buttonId);
+		if (stickyIndex >= 0) {
+			stickyFlag = stickyHash.getValueOf(buttonId);
+			if (stickyFlag) {
+				tft.drawRect(xOffset, yOffset, boxWidth, boxHeight, WHITE);			
+			}
+		}
+
 		tft.setCursor((xOffset+10), (yOffset+((boxHeight/2)-4)));
 		tft.setTextColor(WHITE);
 		tft.setTextSize(1);
@@ -893,6 +904,9 @@ void getTouch() {
 			//Serial.print(triggerEvent);
 			//Serial.println(")");
 
+			toggleStickyTrigger(triggerEvent);
+			updateGrid();
+
 		}
 
 	}
@@ -1021,7 +1035,7 @@ void getVCC() {
 	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
 	txVCC = (vcc)*10;
 	
-	Serial.print("Battery Voltage: "); Serial.println(txVCC);
+	//Serial.print("Battery Voltage: "); Serial.println(txVCC);
 	
 }
 
@@ -1032,6 +1046,90 @@ void getVCA() {
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Utilities *////////////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+void countTriggers() {
+
+	initStickyHash();
+
+	boolean counted = false;
+	int counter = -1;
+	while(counted == false) {
+		counter++;
+		if (gridTriggers[counter] == "***END***") {
+			counted = true;
+		}
+	}
+	countedTriggers = counter;
+	//Serial.print("total triggers: ");
+	//Serial.println(countedTriggers);
+	
+	countedPages = countedTriggers/itemsPerPage;
+	if ((countedTriggers % itemsPerPage) > 0) {
+		countedPages++;
+	}
+	//Serial.print("total pages: ");
+	//Serial.println(countedPages);
+	
+}
+
+void initStickyHash() {
+
+	addStickyTrigger(1,1);
+	addStickyTrigger(2,0);
+	addStickyTrigger(3,0);
+	addStickyTrigger(9,1);
+
+	/*
+	Serial.println("Triggers: ");
+	Serial.println(stickyHash.getValueOf(1));
+	Serial.println(stickyHash.getValueOf(2));
+	Serial.println(stickyHash.getValueOf(3));
+	Serial.println(stickyHash.getValueOf(4));
+	Serial.println(stickyHash.getValueOf(5));
+	Serial.println(stickyHash.getValueOf(6));
+	Serial.println(stickyHash.getValueOf(7));
+	Serial.println(stickyHash.getValueOf(8));
+	Serial.println(stickyHash.getValueOf(9));
+	Serial.println(stickyHash.getValueOf(10));
+
+	Serial.println("Switching 1,2,9");
+	toggleStickyTrigger(1);
+	toggleStickyTrigger(2);
+	toggleStickyTrigger(9);
+
+	Serial.println("Triggers: ");
+	Serial.println(stickyHash.getValueOf(1));
+	Serial.println(stickyHash.getValueOf(2));
+	Serial.println(stickyHash.getValueOf(3));
+	Serial.println(stickyHash.getValueOf(9));
+	*/
+	
+	//stickyHash.debug();
+
+}
+
+void addStickyTrigger(int trigger, boolean init) {
+	stickyHash[hashMapIndex](trigger,init);
+	hashMapIndex++;
+}
+
+void toggleStickyTrigger(int trigger) {
+	boolean triggerState = stickyHash.getValueOf(trigger);
+	int triggerIndex = stickyHash.getIndexOf(trigger);
+	triggerState = !triggerState;
+	stickyHash[triggerIndex](trigger,triggerState);
+}
+
+int arrayLookup(int* haystack, int needle) {
+	int found = -1;
+	for (int i=0; i<TRIGGER_LIMIT; i++) {
+		if (needle == haystack[i]) {
+			found = i;
+			break;
+		}
+	}
+	return found;
+}
 
 String pad(int number, byte width) {
 	String output;
