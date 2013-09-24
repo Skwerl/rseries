@@ -87,9 +87,10 @@
 ///////////////////////* Global Config *////////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+#define codeBranch "Skwerl's R-Series"
+#define codeVersion "0.5"
 #define astromechName "R2-D2"
-#define VERSION "0.5"
-#define OWNER "Skwerl"
+#define astromechOwner "Kevin Cogill"
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Trigger Configuration *////////////////////////////////////////////////////
@@ -483,35 +484,50 @@ void displaySplash() {									// Display a Retro SPLASH Title Screen!
   tft.println("Controller");
   tft.setCursor(130,140);
   tft.setTextSize(2);
-  tft.println(VERSION);
+  tft.println(astromechName);
   tft.setTextColor(BLUE);
   tft.setTextSize(2);
   tft.drawFastHLine(0,0, tft.width(), BLUE);
   tft.drawFastHLine(0,10, tft.width(), BLUE);
   tft.setCursor(20,170);
-  tft.println("Skwerl's Fork");							// No vanity here... :-)
+  tft.println(codeBranch);
   tft.setCursor(20,190);
   tft.println("Royal Engineers of Naboo");				// Need to make it look like SW Canon
   tft.drawFastHLine(0, 229, tft.width(), BLUE); 
   tft.drawFastHLine(0, 239, tft.width(), BLUE);   
 }
 
-void bootTests() {									// Power Up Self Test and Init
+void bootTests() {
 
-	presstocontinue=true;								// User must press something to continue?
+	tft.setCursor(0,0);
+	tft.setTextColor(WHITE);
+	tft.setTextSize(2);
+	tft.print(codeBranch);
+	tft.print(" ");
+	tft.print(codeVersion);
+
+	tft.setTextSize(1);
+	tft.setCursor(0,20);
+	tft.print("Astromech: ");
+	tft.print(astromechName);
+	tft.setCursor(0,30);
+	tft.print("Builder: ");
+	tft.print(astromechOwner);
+
+	tft.setTextColor(GREEN);
+	tft.setTextSize(2);
+	
+	/* BOOT TEST SEQUENCE */
+
 	controllerstatus=false;								// Nunchuk connected?
 	transmitterstatus=false;							// Are we transmitting?
 	networkstatus=false;								// Are we networked?
 	receiverstatus=false;								// Are we receiving?
 	telemetrystatus=false;								// Are we receiving telemetry?
-	
-	tft.setCursor(0, 0);
-	tft.setTextColor(GREEN);
-	tft.setTextSize(2);
-	tft.println("Testing...");
-	tft.setCursor(20,20);
+
+	tft.setCursor(20,60);
 	tft.println("Wii Nunchuk:");
-	tft.setCursor(220,20);
+	tft.setCursor(220,60);
 	tft.setTextColor(RED);
 	tft.println("...");
 	
@@ -529,15 +545,15 @@ void bootTests() {									// Power Up Self Test and Init
 		}
 	}
 	
-	tft.fillRect(220,20,100,17,BLACK);					// Clear Waiting Message
-	tft.setCursor(220,20);
+	tft.fillRect(220,60,100,17,BLACK);					// Clear Waiting Message
+	tft.setCursor(220,60);
 	tft.setTextColor(GREEN);
 	tft.println("OK!");
 	
 	tft.setTextColor(GREEN);
-	tft.setCursor(20,40);
+	tft.setCursor(20,80);
 	tft.println("Transmitter:");
-	tft.setCursor(220,40);
+	tft.setCursor(220,80);
 	tft.setTextColor(RED);
 	tft.println("...");
 	
@@ -552,15 +568,15 @@ void bootTests() {									// Power Up Self Test and Init
 		}
 	}
 	
-	tft.fillRect(220, 40, 100, 17, BLACK);
-	tft.setCursor(220,40);
+	tft.fillRect(220, 80, 100, 17, BLACK);
+	tft.setCursor(220,80);
 	tft.setTextColor(GREEN);
 	tft.println("OK!");  
 
-	tft.setCursor(20,60);
+	tft.setCursor(20,100);
 	tft.setTextColor(GREEN);
 	tft.println("Receiver:");
-	tft.setCursor(220,60);
+	tft.setCursor(220,100);
 	tft.setTextColor(RED);
 	tft.println("Pinging");
 
@@ -593,16 +609,16 @@ void bootTests() {									// Power Up Self Test and Init
 		delay(1000);
 	}
 	Serial.println("Receiver Responded, Status Good");   // DEBUG CODE
-	tft.fillRect(220, 60, 100, 17, BLACK);
-	tft.setCursor(220,60);
+	tft.fillRect(220, 100, 100, 17, BLACK);
+	tft.setCursor(220,100);
 	tft.setTextColor(GREEN);
 	tft.println("OK!");  
 
 	// Looking for the Volts & Amperage from Receiver (Router)
 	tft.setTextColor(GREEN);
-	tft.setCursor(20,80);
+	tft.setCursor(20,120);
 	tft.println("Telemetry:");
-	tft.setCursor(220,80);
+	tft.setCursor(220,120);
 	tft.setTextColor(RED);
 	tft.println("...");
 
@@ -616,8 +632,8 @@ void bootTests() {									// Power Up Self Test and Init
 		}
 	}
 	
-	tft.fillRect(220, 80, 100, 17, BLACK);// Clear Waiting Message
-	tft.setCursor(220,80);
+	tft.fillRect(220, 120, 100, 17, BLACK);// Clear Waiting Message
+	tft.setCursor(220,120);
 	tft.setTextColor(GREEN);
 	tft.println("OK!");  
 	
@@ -627,7 +643,7 @@ void bootTests() {									// Power Up Self Test and Init
 
 void updateStatus() {
 
-	tft.setCursor(0, 3);
+	tft.setCursor(18, 3);
 	tft.setTextColor(WHITE);
 	tft.setTextSize(2);
 	tft.println(astromechName);
@@ -638,7 +654,9 @@ void updateStatus() {
 	updateBattery(235,rxVCCout,"RX");
 
 	nextStatusBarUpdate = millis() + updateStatusDelay;
-	
+
+	updateSignal();
+
 }
 
 void updateGrid() {
@@ -808,6 +826,14 @@ void updateBattery(int battx, float vcc, String display) {
 	
 }
 
+void updateSignal() {
+	if (radiostatus == "OK") {
+		tft.fillCircle(7, 9, 6, WHITE);          
+	} else {
+		tft.drawCircle(7, 9, 6, GRAY);
+	}
+}
+
 void getTouch() {  
 	
 	int touchedRelativeX;
@@ -942,8 +968,15 @@ void TXdata() {
 	*/
 
 	xbee.send(zbTx);
+
+	if (triggerEvent > 0) {
+		if (radiostatus == "OK") {
+			tft.fillCircle(7, 9, 6, GREEN);          
+		}
+	}
 	
-	delay(100);
+	delay(200);
+	updateSignal();
 	triggerEvent=0;
 	zbut=0;
 	cbut=0;
