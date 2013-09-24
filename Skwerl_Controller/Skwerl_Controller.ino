@@ -95,12 +95,13 @@
 ///////////////////////* Trigger Configuration *////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-#define TRIGGER_LIMIT 251
+#define TOTAL_TRIGGERS 19
+#define TOTAL_STICKY 3
 
 // Until TX payload has been reworked, we have a limit of 251 triggers.
 // Trigger names should be 13 characters or less.
 //  |-------------|
-char* gridTriggers[] = {
+char* gridTriggers[TOTAL_TRIGGERS] = {
 	"Sticky 1",
 	"Sticky 2",
 	"Sticky 3",
@@ -119,15 +120,20 @@ char* gridTriggers[] = {
 	"Scream 4",
 	"Processing",
 	"Short Circuit",
-	"Startup Sound",
-	"***END***" // Ignore
+	"Startup Sound"
 };
 
-int hashMapIndex = 0;
-HashType<int,boolean> hashRawArray[TRIGGER_LIMIT]; 
-HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TRIGGER_LIMIT); 
+int stickyTriggers[TOTAL_STICKY] = {
+	1,2,3
+};
 
-int stickyTriggers[] = { 1,2,3,9 };
+int boxWidth = 100;
+int boxHeight = 52;
+int boxMargin = 10;
+
+int hashMapIndex = 0;
+HashType<int,boolean> hashRawArray[TOTAL_TRIGGERS]; 
+HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TOTAL_TRIGGERS); 
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* RSeries Configuration *////////////////////////////////////////////////////
@@ -193,7 +199,6 @@ int boxesPerRow = 3;
 int rowsPerPage = 3;
 
 int itemsPerPage = boxesPerRow*rowsPerPage;
-int countedTriggers = 0;
 int countedPages = 0;
 int curPage = 1;
 
@@ -253,6 +258,9 @@ int sensitivity = 30;	// Default is 10
 
 uint16_t touchedY;
 uint16_t touchedX;
+
+int touchedRow;
+int touchedCol;
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
 
@@ -378,7 +386,7 @@ void setup() {
 	
 	pinMode(analogVCCinput, INPUT);
 
-	countTriggers();									// Process trigger arrays
+	countPages();									// Process trigger arrays
 
 	tft.reset();										// A4 must be connected to TFT Break out Pin 7
 
@@ -595,7 +603,7 @@ void bootTests() {									// Power Up Self Test and Init
 	tft.setCursor(220,80);
 	tft.setTextColor(RED);
 	tft.println("...");
-	
+
 	while(telemetrystatus == false) {
 		RXdata();
 		//Serial.print("POST Received Telemetry -->> rxVCC =");
@@ -681,9 +689,6 @@ void updateGrid() {
 	int i;
 	int xOffset = 0;
 	int yOffset = 30;
-	int boxWidth = 100;
-	int boxHeight = 52;
-	int boxMargin = 10;
 	int colIndex = 1;
 	int buttonId;
 
@@ -706,23 +711,30 @@ void updateGrid() {
 
 	for (i=startAt; i<(startAt+itemsPerPage); i++) {
 
-		if ((gridTriggers[i] == "***END***") || (i>251)) { break; }
+		//int totalTriggers = sizeof(gridTriggers)/sizeof(char*);
+		//Serial.print("Size of array: ");
+		//Serial.println(totalTriggers);
+
+		if ((i >= TOTAL_TRIGGERS) || (i>251)) { break; }
 
 		xOffset = (colIndex-1)*(boxMargin+boxWidth);
 
 		tft.fillRect(xOffset, yOffset, boxWidth, boxHeight, GRAY);
-		
-		stickyFlag = stickyHash.getValueOf(i);
-		Serial.print("Rendering trigger ID# "); Serial.println(i);
-		Serial.print("Sticky Status: "); Serial.println(stickyFlag);
 
 		buttonId = i+1;
-		stickyIndex = arrayLookup(stickyTriggers, buttonId);
+		
+		stickyFlag = stickyHash.getValueOf(buttonId);
+		//Serial.print("Rendering trigger ID# "); Serial.println(buttonId);
+
+		stickyIndex = getStickyTrigger(stickyTriggers, buttonId);
 		if (stickyIndex >= 0) {
 			stickyFlag = stickyHash.getValueOf(buttonId);
+			//Serial.print("Sticky status: "); Serial.println(stickyFlag);
 			if (stickyFlag) {
 				tft.drawRect(xOffset, yOffset, boxWidth, boxHeight, WHITE);			
 			}
+		} else {
+			//Serial.println("Not sticky.");
 		}
 
 		tft.setCursor((xOffset+10), (yOffset+((boxHeight/2)-4)));
@@ -847,9 +859,6 @@ void displaySendClear() {
 }
 
 void getTouch() {  
-
-	int touchedRow;
-	int touchedCol;
 	
 	int touchedRelativeX;
 	int touchedRelativeY;
@@ -904,8 +913,10 @@ void getTouch() {
 			//Serial.print(triggerEvent);
 			//Serial.println(")");
 
-			toggleStickyTrigger(triggerEvent);
-			updateGrid();
+			int touchedSticky = getStickyTrigger(stickyTriggers, triggerEvent);
+			if (touchedSticky >= 0) {
+				toggleStickyTrigger(triggerEvent);
+			}
 
 		}
 
@@ -1047,64 +1058,23 @@ void getVCA() {
 ///////////////////////* Utilities *////////////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-void countTriggers() {
-
+void countPages() {
 	initStickyHash();
-
-	boolean counted = false;
-	int counter = -1;
-	while(counted == false) {
-		counter++;
-		if (gridTriggers[counter] == "***END***") {
-			counted = true;
-		}
-	}
-	countedTriggers = counter;
-	//Serial.print("total triggers: ");
-	//Serial.println(countedTriggers);
-	
-	countedPages = countedTriggers/itemsPerPage;
-	if ((countedTriggers % itemsPerPage) > 0) {
+	countedPages = TOTAL_TRIGGERS/itemsPerPage;
+	if ((TOTAL_TRIGGERS % itemsPerPage) > 0) {
 		countedPages++;
 	}
 	//Serial.print("total pages: ");
-	//Serial.println(countedPages);
-	
+	//Serial.println(countedPages);	
 }
 
 void initStickyHash() {
 
-	addStickyTrigger(1,1);
-	addStickyTrigger(2,0);
-	addStickyTrigger(3,0);
-	addStickyTrigger(9,1);
+	for (int i=0; i<TOTAL_STICKY; i++) {
+		addStickyTrigger(stickyTriggers[i],0);
+	}
 
-	/*
-	Serial.println("Triggers: ");
-	Serial.println(stickyHash.getValueOf(1));
-	Serial.println(stickyHash.getValueOf(2));
-	Serial.println(stickyHash.getValueOf(3));
-	Serial.println(stickyHash.getValueOf(4));
-	Serial.println(stickyHash.getValueOf(5));
-	Serial.println(stickyHash.getValueOf(6));
-	Serial.println(stickyHash.getValueOf(7));
-	Serial.println(stickyHash.getValueOf(8));
-	Serial.println(stickyHash.getValueOf(9));
-	Serial.println(stickyHash.getValueOf(10));
-
-	Serial.println("Switching 1,2,9");
-	toggleStickyTrigger(1);
-	toggleStickyTrigger(2);
-	toggleStickyTrigger(9);
-
-	Serial.println("Triggers: ");
-	Serial.println(stickyHash.getValueOf(1));
-	Serial.println(stickyHash.getValueOf(2));
-	Serial.println(stickyHash.getValueOf(3));
-	Serial.println(stickyHash.getValueOf(9));
-	*/
-	
-	//stickyHash.debug();
+	stickyHash.debug();
 
 }
 
@@ -1113,22 +1083,33 @@ void addStickyTrigger(int trigger, boolean init) {
 	hashMapIndex++;
 }
 
-void toggleStickyTrigger(int trigger) {
-	boolean triggerState = stickyHash.getValueOf(trigger);
-	int triggerIndex = stickyHash.getIndexOf(trigger);
-	triggerState = !triggerState;
-	stickyHash[triggerIndex](trigger,triggerState);
-}
-
-int arrayLookup(int* haystack, int needle) {
+int getStickyTrigger(int* haystack, int needle) {
 	int found = -1;
-	for (int i=0; i<TRIGGER_LIMIT; i++) {
+	for (int i=0; i<TOTAL_STICKY; i++) {
 		if (needle == haystack[i]) {
 			found = i;
 			break;
 		}
 	}
 	return found;
+}
+
+void toggleStickyTrigger(int trigger) {
+
+	boolean triggerState = stickyHash.getValueOf(trigger);
+	int triggerIndex = stickyHash.getIndexOf(trigger);
+	
+	int touchedPadX = (((boxWidth+boxMargin)*(touchedCol-1))+0);
+	int touchedPadY = (((boxHeight+boxMargin)*(touchedRow-1))+20+boxMargin);
+
+	if (triggerState) {
+		tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, GRAY);			
+	} else {
+		tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, WHITE);			
+	}
+
+	triggerState = !triggerState;
+	stickyHash[triggerIndex](trigger,triggerState);
 }
 
 String pad(int number, byte width) {
