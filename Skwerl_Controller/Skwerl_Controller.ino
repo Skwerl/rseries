@@ -463,14 +463,16 @@ void loop() {
 	getTouch();
 	
 	TXdata();
-	delay(100);
-	displaySendClear();
-	
+
 	if (millis() >= nextStatusBarUpdate) {
 		updateStatus();
 	}
 
 }
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* RSeries Functions *////////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 void displaySplash() {									// Display a Retro SPLASH Title Screen!
   tft.setCursor(40, 80);
@@ -634,51 +636,6 @@ void updateStatus() {
 	updateRSSI();
 	updateBattery(175,txVCCout,"TX");
 	updateBattery(235,rxVCCout,"RX");
-
-	/*
-	tft.setTextSize(2);
-	displayBATT();
-	displayRSSI();
-	tft.setCursor(128, 0);
-	
-	if (rx1ErrorCount <= 5 && radiostatus == "OK") {
-		tft.setTextColor(GREEN);
-	} else if (rx1ErrorCount >5 && radiostatus == "OK") {
-		tft.setTextColor(YELLOW);
-	} else if (rx1ErrorCount >5 && radiostatus != "OK") {
-		tft.setTextColor(RED);
-	}
-	*/
-	
-	//tft.println(radiostatus);				// Display the OK or RX or TX radio controll status.
-
-	/*	
-	if (ProcessStateIndicator == 0) {		// Display a ball heart beat in between Radio Status & dmmVCC
-		tft.fillCircle(160,7, 5, BLUE);          
-		ProcessStateIndicator = 1;
-	} else {
-		tft.fillCircle(160,7, 5, RED);
-		ProcessStateIndicator = 0;
-	}
-	*/
-		
-	/*
-	tft.setTextColor(GREEN);				// Default dmmVCA text color
-	if (dmmVCA >= yellowVCA) {				// If dmmVCA goes ABOVE, change text to YELLOW or RED
-		tft.setTextColor(YELLOW);
-	}
-	if (dmmVCA >= redVCA) {
-		tft.setTextColor(RED);
-	}
-	
-	tft.fillRect(250, 0, 59, 17, BLACK);
-	
-	tft.setCursor(250, 0);
-	tft.println(dmmVCA,2);					// Display dmmVCA FLOAT 2 Places
-	tft.setCursor(310, 0);
-	tft.println("A");
-
-	*/
 
 	nextStatusBarUpdate = millis() + updateStatusDelay;
 	
@@ -851,13 +808,6 @@ void updateBattery(int battx, float vcc, String display) {
 	
 }
 
-void displaySendClear() {
-//	tft.fillRect(80, 21, 220, 17, BLACK);		// Clear Trigger Message
-	triggerEvent=0;								// Zero out selection variables
-	zbut=0;
-	cbut=0;
-}
-
 void getTouch() {  
 	
 	int touchedRelativeX;
@@ -992,6 +942,11 @@ void TXdata() {
 	*/
 
 	xbee.send(zbTx);
+	
+	delay(100);
+	triggerEvent=0;
+	zbut=0;
+	cbut=0;
 
 }  
 
