@@ -35,6 +35,7 @@ ModemStatusResponse msr = ModemStatusResponse();
 
 uint8_t idCmd[] = {'I','D'};
 uint8_t opCmd[] = {'O','P'};
+uint8_t dbCmd[] = {'D','B'};
 uint8_t payload[] = { '0', '0', '0', '0', '0', '0'}; // Our XBee Payload of 6 values (txVCC=2, txVCA=2, future=2)
 
 AtCommandRequest atRequest = AtCommandRequest(opCmd);
@@ -114,12 +115,7 @@ int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correc
 
 int loop_cnt = 0;
 
-byte telemetryVCCMSB;									// MSB of Voltage VCC
-byte telemetryVCCLSB;									// LSB of Voltage VCC
- 
-byte telemetryVCAMSB;									// MSB of Current VCA
-byte telemetryVCALSB;									// LSB of Current VCA
-
+int txRSSI;
 unsigned int txVCC = 0;
 unsigned int txVCA = 0;
 
@@ -161,6 +157,8 @@ void setup() {
 }
 
 void loop() {
+
+	getRSSI();
 
 	loop_cnt++;
 
@@ -388,64 +386,20 @@ void clearServos() {
 
 }
 
-void playSound(int sample) {
-	if (mp3Playing == false) {
-		Serial.print("Playing sample #");
-		Serial.println(sample);
-		Serial2.write('t');
-		Serial2.write(sample);
-		mp3Playing = true;
-	}
-}
-
-void stopSound() {
-	if (mp3Playing == true) {
-		Serial.println("Stop");
-		Serial2.write('O');
-		mp3Playing = false;
-	}
-	clearServos();
-}
-
-void toggleHPs() {
-	if (holosOn) {
-		Serial.println("HPs OFF");
-		chan4servo.write(80);
-	} else {
-		Serial.println("HPs ON");
-		chan4servo.write(100);
-	}
-	delay(800);
-	holosOn = !holosOn;
-}
-
 void sendTelemetry() {
 
 	getVCC();
 	getVCA();
+
+	Serial.print("txVCC="); Serial.println(txVCC);
+	Serial.print("txVCA="); Serial.println(txVCA);
 	
-	Serial.print("txVCC="); Serial.print(txVCC);
-	Serial.print("\ttxVCA="); Serial.println(txVCA);
-
-	// Take the value of stored in txVCC & txVCA, and convert them to MSB & LSB 2 bytes via a bitshift operation 
-	telemetryVCCMSB = (txVCC >> 8) & 0xFF;  
-	telemetryVCCLSB = txVCC & 0xFF;
-
-	telemetryVCAMSB = (txVCA >> 8) & 0xFF;  
-	telemetryVCALSB = txVCA & 0xFF;
-
-	/*
-	//  NOTE:  To make the 2 Byte (MSB & LSB) values back into an int use the following code:    
-	int telemetryVCC = (int)(word(telemetryVCCMSB,telemetryVCCLSB));    
-	int telemetryVCA = (int)(word(telemetryVCAMSB,telemetryVCALSB));
-	*/
-	
-	payload[0] = telemetryVCCMSB;						// MSB of txVCC Voltage from Receiver. Test Voltage sent is 136 as a 2 byte byte 0x88h, this will get divided by 10
-	payload[1] = telemetryVCCLSB;						// LSB of txVCC
-	payload[2] = telemetryVCAMSB;						// MSB of txVCA Amperage from Receiver. 
-	payload[3] = telemetryVCALSB;						// LSB of txVCA
-	payload[4] = '1';									// Future Use - User usable
-	payload[5] = '2';									// Future Use - Transmitting RX Error codes back to the controller
+	payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
+	payload[1] = txVCA;									// Amperage to one decimal place * 10
+	payload[2] = txRSSI;								// RSSI Value 
+	payload[3] = '0';									// Future Use
+	payload[4] = '1';									// Future Use
+	payload[5] = '2';									// Future Use
 	
 	xbee.send(zbTx); 
 
@@ -475,8 +429,29 @@ void getVCC() {
 }
   
 void getVCA() {
-	txVCA = random(1,999);
+	txVCA = random(0,255);
 }  
+
+void getRSSI() {
+
+	atRequest.setCommand(dbCmd);  
+	xbee.send(atRequest);
+	if (xbee.readPacket(5000)) {
+		xbee.getResponse().getAtCommandResponse(atResponse);			
+		if (atResponse.isOk()) {
+			if (atResponse.getValueLength() > 0) {
+				txRSSI = atResponse.getValue()[0];
+				//Serial.print("RSSI Value: ");
+				//Serial.println(txRSSI);
+			} else {
+				//Serial.print("Response empty");
+			}
+		} else {
+			//Serial.print("Command failed");
+		}
+	}
+
+}
 
 void getOP() {
 
@@ -506,4 +481,39 @@ void getOP() {
 		}
 	}
 
+}
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Custom Droid Functions *///////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+void playSound(int sample) {
+	if (mp3Playing == false) {
+		Serial.print("Playing sample #");
+		Serial.println(sample);
+		Serial2.write('t');
+		Serial2.write(sample);
+		mp3Playing = true;
+	}
+}
+
+void stopSound() {
+	if (mp3Playing == true) {
+		Serial.println("Stop");
+		Serial2.write('O');
+		mp3Playing = false;
+	}
+	clearServos();
+}
+
+void toggleHPs() {
+	if (holosOn) {
+		Serial.println("HPs OFF");
+		chan4servo.write(80);
+	} else {
+		Serial.println("HPs ON");
+		chan4servo.write(100);
+	}
+	delay(800);
+	holosOn = !holosOn;
 }

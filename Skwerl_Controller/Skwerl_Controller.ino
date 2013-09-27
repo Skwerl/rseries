@@ -287,18 +287,14 @@ float txVCAout;											// Display variable for Amperage from Receiver
 
 /* TELEMETRY FROM RECEIVER */
 
+int rxRssi;
+int rssiMin = 90;
+int rssiMax = 40;
+
 unsigned int rxVCC;
 unsigned int rxVCA;
 float rxVCCout;											// Display variable for Voltage from Receiver
 float rxVCAout;											// Display variable for Amperage from Receiver
-
-float previousdmmVCC = 00.0;
-float previousdmmVCA = 00.0;
-
-unsigned char telemetryVCCMSB = 0;
-unsigned char telemetryVCCLSB = 0;
-unsigned char telemetryVCAMSB = 0;
-unsigned char telemetryVCALSB = 0;
 
 float vinSTRONG = 3.4;									// If vin is above vinSTRONG display GREEN battery
 float vinWEAK = 2.9;									// if vin is above vinWEAK display YELLOW otherwise display RED
@@ -582,9 +578,9 @@ void updateStatus() {
 	updateBattery(175,txVCCout,"TX");
 	updateBattery(235,rxVCCout,"RX");
 
-	nextStatusBarUpdate = millis() + updateStatusDelay;
-
 	updateSignal();
+
+	nextStatusBarUpdate = millis() + updateStatusDelay;
 
 }
 
@@ -658,14 +654,13 @@ void updateGrid() {
 
 void updateRSSI() {
 
-	xbRSSI = rx16.getRssi();
-	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+	int bars = map(rxRssi, rssiMin, rssiMax, 0, 6);
 
-	//int RSSI = ((int)readRSSI)/4;
-	int RSSI = 4;
-
-	//Serial.print("readRSSI: "); Serial.println(readRSSI);
-	//Serial.print("xbRSSI: "); Serial.println(xbRSSI);
+	//Serial.print("RSSI bars: ");
+	//Serial.print(bars);
+	//Serial.print(" (RSSI value was ");
+	//Serial.print(rxRssi);
+	//Serial.println(")");
 
 	tft.fillRect(298, 2, 22, 17, BLACK);
 
@@ -684,25 +679,31 @@ void updateRSSI() {
 	tft.drawFastVLine(318, 3, 13, GRAY);
 	tft.drawFastVLine(319, 3, 13, GRAY);
 	
-	if (RSSI>=1) {
+	if (bars>=1) {
 		tft.drawFastVLine(298, 14, 2, WHITE);			// Signal =1 
 		tft.drawFastVLine(299, 14, 2, WHITE);
 	}  
-	if (RSSI>=2) {
+	if (bars>=2) {
 		tft.drawFastVLine(303, 12, 4, WHITE);			// Signal =2
 		tft.drawFastVLine(304, 12, 4, WHITE);
 	}
-	if (RSSI>=3) {
+	if (bars>=3) {
 		tft.drawFastVLine(308, 10, 6, WHITE);			// Signal =3 
 		tft.drawFastVLine(309, 10, 6, WHITE);
 	}
-	if (RSSI>=4) {
+	if (bars>=4) {
 		tft.drawFastVLine(313, 7, 9, WHITE);			// Signal =4 
 		tft.drawFastVLine(314, 7, 9, WHITE);
 	}
-	if (RSSI>=5) {
+	if (bars>=5) {
 		tft.drawFastVLine(318, 3, 13, WHITE);			// Signal =5 
 		tft.drawFastVLine(319, 3, 13, WHITE);
+	}
+
+	if (bars<1) {
+		radiostatus = "...";
+	} else {
+		radiostatus = "OK";
 	}
 
 }
@@ -842,7 +843,6 @@ void RXdata() {
 
 			xbee.getResponse().getZBRxResponse(rx);
 
-			/*
 			Serial.print("Rx:");
 			Serial.print("\t");   Serial.print(rx.getData()[0]);
 			Serial.print("\t");   Serial.print(rx.getData()[1]);
@@ -851,19 +851,15 @@ void RXdata() {
 			Serial.print("\t");   Serial.print(rx.getData()[4]);
 			Serial.print("\t"); Serial.println(rx.getData()[5]);
 			Serial.println("\tReceived zbTx");
-			*/
 
-			telemetryVCCMSB = rx.getData()[0];
-			telemetryVCCLSB = rx.getData()[1];
-			telemetryVCAMSB = rx.getData()[2];
-			telemetryVCALSB = rx.getData()[3];
-
-			rxVCC = (unsigned int)word(telemetryVCCMSB,telemetryVCCLSB);
-			rxVCA = (unsigned int)word(telemetryVCAMSB,telemetryVCALSB);
+			rxVCC = rx.getData()[0];
+			rxVCA = rx.getData()[1];
+			rxRssi = rx.getData()[2];
 
 			rxVCCout = (float)rxVCC/10.0;
 			rxVCAout = (float)rxVCA/10.0;
 
+			Serial.print("Receiver RSSI: "); Serial.println(rxRssi);
 			Serial.print("Receiver Voltage: "); Serial.println(rxVCCout);
 			Serial.print("Receiver Amperage: "); Serial.println(rxVCAout);
 
