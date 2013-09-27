@@ -57,6 +57,8 @@ int randNum;
 int mp3Byte = 0;
 boolean mp3Playing = false;
 
+boolean holosOn = false;
+
 int joyxmin = 0;
 int joyxmax = 255;
 int joyymin = 0;
@@ -75,6 +77,7 @@ int acczmax = 173;
 Servo chan1servo;
 Servo chan2servo;
 Servo chan3servo;
+Servo chan4servo;
 
 int servo1Pin = 2;		// Channel 1
 int servo2Pin = 3;		// Channel 2
@@ -88,8 +91,8 @@ int servo9Pin = 11;		// Channel 9
 int servo10Pin = 12;	// Channel 10
 
 // Ranges
-int chan1Min = 30;			// Channel 1 Min - Left Right  
-int chan1Max = 220;			// Channel 1 Max - Left Right
+int chan1Min = 30;			// Channel 1 Min - Left/Right  
+int chan1Max = 220;			// Channel 1 Max - Left/Right
 int chan2Min = 30;			// Channel 2 Min - Forward & Reverse Speed 
 int chan2Max = 220;			// Channel 2 Max - Forward & Reverse Speed
 int chan3Min = 105;			// Channel 3 Min - Dome Rotation LEFT 
@@ -148,6 +151,7 @@ void setup() {
 	chan1servo.attach(servo1Pin);  // Foot motors left/right
 	chan2servo.attach(servo2Pin);  // Foot motors forward/back
 	chan3servo.attach(servo3Pin);  // Dome motor 
+	chan4servo.attach(servo4Pin);  // HPs switch 
 
 	clearServos();
 
@@ -252,23 +256,24 @@ void handleEvent() {
 		
 		case 252:
 			Serial.println("C Button Pressed");
-			if (joyy >= 133) {
-				// Joystick up, play "happy" sound:
+			// Play sound...
+			if (joyy >= 133) { // Joystick UP
+				// Play "happy" sound:
 				randNum = random(41,83);
 				playSound(randNum);
-			} else if (joyx >= 133) {
-				// Joystick left, play "scared" sound:
+			} else if (joyx >= 133) { // Joystick LEFT
+				// Play "scared" sound:
 				randNum = random(83,137);
 				playSound(randNum);
-			} else if (joyx <= 123) {
-				// Joystick right, play "angry" sound:
+			} else if (joyx <= 123) { // Joystick RIGHT
+				// Play "angry" sound:
 				randNum = random(137,150);
 				playSound(randNum);
-			} else if (joyy <= 123) {
-				// Joystick down, Send STOP command:
+			} else if (joyy <= 123) { // Joystick DOWN
+				// Send STOP command:
 				stopSound();
-			} else {
-				// Joystick neutral, play "casual" sound:
+			} else { // Joystick NEUTRAL
+				// Play "casual" sound:
 				randNum = random(1,41);
 				playSound(randNum);
 			}
@@ -276,23 +281,27 @@ void handleEvent() {
 
 		case 253:
 			Serial.println("Z Button Pressed");
-
-			// Dome spin:
-
+			// Spin dome...
 			joyx = map(joyx, joyxmin, joyxmax, chan3Min, chan3Max);
-
-			Serial.print("Writing ");
-			Serial.print(joyx);
-			Serial.println(" to servo 3...");
-
 			chan3servo.write(joyx);
-
 			break;
 
 		case 254:
+			// Special stuff...
 			Serial.println("Z+C Buttons Pressed");
-			// Play Leia's message:
-			playSound(156);
+			if (joyy >= 133) { // Joystick UP
+				// Toggle Holos:
+				toggleHPs();
+			} else if (joyx >= 133) { // Joystick LEFT
+				// Placeholder...
+			} else if (joyx <= 123) { // Joystick RIGHT
+				// Placeholder...
+			} else if (joyy <= 123) { // Joystick DOWN
+				// Play Leia's message:
+				playSound(156);
+			} else { // Joystick NEUTRAL
+				// Placeholder...
+			}
 			break;
 
 		// Any touch screen triggers?
@@ -396,6 +405,18 @@ void stopSound() {
 		mp3Playing = false;
 	}
 	clearServos();
+}
+
+void toggleHPs() {
+	if (holosOn) {
+		Serial.println("HPs OFF");
+		chan4servo.write(80);
+	} else {
+		Serial.println("HPs ON");
+		chan4servo.write(100);
+	}
+	delay(800);
+	holosOn = !holosOn;
 }
 
 void sendTelemetry() {
