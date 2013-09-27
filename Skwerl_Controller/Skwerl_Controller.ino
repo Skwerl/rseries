@@ -99,8 +99,8 @@
 #define TOTAL_TRIGGERS 19
 #define TOTAL_STICKY 3
 
-// Until TX payload has been reworked, we have a limit of 251 triggers.
-// Trigger names should be 13 characters or less.
+//  Until TX payload has been reworked, we have a limit of 251 triggers.
+//  Trigger names should be 13 characters or less.
 //  |-------------|
 char* gridTriggers[TOTAL_TRIGGERS] = {
 	"Sticky 1",
@@ -135,62 +135,6 @@ int boxMargin = 10;
 int hashMapIndex = 0;
 HashType<int,boolean> hashRawArray[TOTAL_TRIGGERS]; 
 HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TOTAL_TRIGGERS); 
-
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
-///////////////////////* RSeries Configuration *////////////////////////////////////////////////////
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
-
-char* radiostatus = "...";
-
-//byte rxArray1[60];				// Allows for 60 Bytes to be read at once
-									// XBee S2B only has room for about 100 packets of 54 bytes 
-									// Arduino 022 only has 128 buffers for each Serial(0,1,2,3)
-									// Also note use must use FastSerial.h 
-
-// Define which digital pins on the arduino are for servo data signals 
-//int servo1Pin = 6;				// Channel 1 - Left Right  
-//int servo2Pin = 7;				// Channel 2 - Forward & Reverse Speed
-//int servo3Pin = 10;				// Channel 3 - Dome Rotation 
-
-// Servo Center Adjustment 
-int chan1Center = 90;				// Channel 1 - Left Right  
-int chan2Center = 90;				// Channel 2 - Forward & Reverse Speed
-int chan3Center = 90;				// Channel 3 - Dome Rotation 
-
-// Channel Adjustment 
-int chan1Adjust = 0;				// Channel 1 - Left Right  
-int chan2Adjust = 0;				// Channel 2 - Forward & Reverse Speed
-int chan3Adjust = 0;				// Channel 3 - Dome Rotation 
-
-// Channel Center Adjustment
-int chan1Trim = 0;					// Channel 1 - Left Right  
-int chan2Trim = 0;					// Channel 2 - Forward & Reverse Speed
-int chan3Trim = 0;					// Channel 3 - Dome Rotation 
-
-// Neutral Adjustments 
-int chan1Neutral = 130;				// Channel 1 - Left Right  
-int chan2Neutral = 130;				// Channel 2 - Forward & Reverse Speed
-int chan3Neutral = 130;				// Channel 3 - Dome Rotation 
-
-// Neutral Width Adjustment, which takes Neutral + & - these values.
-// So 120 to 140 would be considered Neutral or 90
-int chan1Width = 10;				// Channel 1 - Left Right  
-int chan2Width = 10;				// Channel 2 - Forward & Reverse Speed
-int chan3Width = 10;				// Channel 3 - Dome Rotation 
-
-// Nunchuck End Points Channel Adjustment 
-int chan1Min = 27;					// Channel 1 Min - Left Right  
-int chan1Max = 229;					// Channel 1 Max - Left Right
-int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
-int chan2Max = 232;					// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 77;					// Channel 3 Min - Dome Rotation  
-int chan3Max = 180;					// Channel 3 Max - Dome Rotation 
-
-//Servo chan1servo;					// create servo object to control a servo 
-//Servo chan2servo;					// create servo object to control a servo 
-//Servo chan3servo;					// create servo object to control a servo 
-
-int loop_cnt=0;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* LCD Display Configuration *////////////////////////////////////////////////
@@ -322,11 +266,21 @@ ArduinoNunchuk nunchuk = ArduinoNunchuk();
 
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 
+// Nunchuck End Points Channel Adjustment 
+int chan1Min = 27;					// Channel 1 Min - Left Right  
+int chan1Max = 229;					// Channel 1 Max - Left Right
+int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
+int chan2Max = 232;					// Channel 2 Max - Forward & Reverse Speed
+int chan3Min = 77;					// Channel 3 Min - Dome Rotation  
+int chan3Max = 180;					// Channel 3 Max - Dome Rotation 
+
 byte triggerEvent;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int updateStatusDelay = 3500;							// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
 
 int analogVCCinput = 5;									// RSeries Controller default VCC input is A5
 float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
@@ -369,9 +323,7 @@ float redVCA = 65.0;
 long lastStatusBarUpdate = 0;
 long nextStatusBarUpdate = 0;
 
-int updateStatusDelay = 3500;							// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
-
-int ProcessStateIndicator = 0;							// Alternates between 0 & 1 High
+char* radiostatus = "...";
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
@@ -1062,7 +1014,7 @@ void initStickyHash() {
 		addStickyTrigger(stickyTriggers[i],0);
 	}
 
-	stickyHash.debug();
+	//stickyHash.debug();
 
 }
 
