@@ -1,6 +1,6 @@
 /*
  * Astromech RSeries Receiver for the R2 Builders Club
- * Skwerl's Fork 
+ * Skwerl's Fork
  *  
  * Heavily based on Michael Erwin's
  * RSeries Open Controller Project
@@ -116,6 +116,7 @@ int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correc
 int loop_cnt = 0;
 
 int txRSSI;
+
 unsigned int txVCC = 0;
 unsigned int txVCA = 0;
 
@@ -151,18 +152,17 @@ void setup() {
 
 	//delay(3000);
 	//getOP();
-	
+
 	startupChime();
 
 }
 
 void loop() {
 
-	getRSSI();
-
 	loop_cnt++;
 
-	if (loop_cnt > 50) {
+	if (loop_cnt > 40) {
+		getRSSI();
 		sendTelemetry();
 		loop_cnt = 0;
 	}
@@ -390,16 +390,16 @@ void sendTelemetry() {
 
 	getVCC();
 	getVCA();
-
-	Serial.print("txVCC="); Serial.println(txVCC);
-	Serial.print("txVCA="); Serial.println(txVCA);
+	
+	Serial.print("txVCC="); Serial.print(txVCC);
+	Serial.print("\ttxVCA="); Serial.println(txVCA);
 	
 	payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
 	payload[1] = txVCA;									// Amperage to one decimal place * 10
 	payload[2] = txRSSI;								// RSSI Value 
-	payload[3] = '0';									// Future Use
-	payload[4] = '1';									// Future Use
-	payload[5] = '2';									// Future Use
+	payload[3] = '3';									// Future Use
+	payload[4] = '4';									// Future Use
+	payload[5] = '5';									// Future Use
 	
 	xbee.send(zbTx); 
 
