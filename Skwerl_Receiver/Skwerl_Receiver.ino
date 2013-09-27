@@ -307,7 +307,7 @@ void handleEvent() {
 		// Any touch screen triggers?
 
 		case 1:
-			playSound(15);
+			toggleHPs();
 			break;
 		case 2:
 			playSound(15);

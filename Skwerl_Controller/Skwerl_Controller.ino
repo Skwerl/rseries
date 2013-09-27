@@ -88,7 +88,7 @@
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #define codeBranch "Skwerl's R-Series"
-#define codeVersion "0.5"
+#define codeVersion "0.6"
 #define astromechName "R2-D2"
 #define astromechOwner "Kevin Cogill"
 
@@ -103,7 +103,7 @@
 //  Trigger names should be 13 characters or less.
 //  |-------------|
 char* gridTriggers[TOTAL_TRIGGERS] = {
-	"Sticky 1",
+	"Holos",
 	"Sticky 2",
 	"Sticky 3",
 	"Laugh",
