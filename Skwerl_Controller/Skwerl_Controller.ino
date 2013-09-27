@@ -654,7 +654,7 @@ void updateGrid() {
 
 void updateRSSI() {
 
-	int bars = map(rxRssi, rssiMin, rssiMax, 0, 6);
+	int bars = map(rxRssi, rssiMin, rssiMax, 0, 5);
 
 	//Serial.print("RSSI bars: ");
 	//Serial.print(bars);
