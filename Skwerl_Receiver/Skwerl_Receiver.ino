@@ -76,9 +76,16 @@ Servo chan1servo;
 Servo chan2servo;
 Servo chan3servo;
 
-int servo1Pin = 2;
-int servo2Pin = 3;
-int servo3Pin = 4;
+int servo1Pin = 2;		// Channel 1
+int servo2Pin = 3;		// Channel 2
+int servo3Pin = 4;		// Channel 3
+int servo4Pin = 5;		// Channel 4
+int servo5Pin = 7;		// Channel 5
+int servo6Pin = 8;		// Channel 6
+int servo7Pin = 9;		// Channel 7
+int servo8Pin = 10;		// Channel 8
+int servo9Pin = 11;		// Channel 9
+int servo10Pin = 12;	// Channel 10
 
 // Ranges
 int chan1Min = 30;			// Channel 1 Min - Left Right  
