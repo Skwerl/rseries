@@ -57,6 +57,17 @@ int randNum;
 int mp3Byte = 0;
 boolean mp3Playing = false;
 
+int joyxmin = 0;
+int joyxmax = 255;
+int joyymin = 0;
+int joyymax = 255;
+int accxmin = 70;
+int accxmax = 182;
+int accymin = 65;
+int accymax = 173;
+int acczmin = 65;
+int acczmax = 173;
+
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* PWM & Servo Configuration *////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -67,13 +78,25 @@ Servo chan3servo;
 
 int servo1Pin = 2;
 int servo2Pin = 3;
-int servo3Pin = 4; 
+int servo3Pin = 4;
 
-chan1servo.attach(servo1Pin);  // Foot motors left/right
-chan2servo.attach(servo2Pin);  // Foot motors forward/back
-chan3servo.attach(servo3Pin);  // Dome motor 
+// Ranges
+int chan1Min = 30;			// Channel 1 Min - Left Right  
+int chan1Max = 220;			// Channel 1 Max - Left Right
+int chan2Min = 30;			// Channel 2 Min - Forward & Reverse Speed 
+int chan2Max = 220;			// Channel 2 Max - Forward & Reverse Speed
+int chan3Min = 105;			// Channel 3 Min - Dome Rotation LEFT 
+int chan3Max = 75;			// Channel 3 Max - Dome Rotation RIGHT
 
-//chan3servo.write();
+// Weirdness Corrections
+int chan1correct = 0;
+int chan2correct = 0;
+int chan3correct = -2;		// Syren10 neutral is more like 92
+
+// Neutral Adjustments 
+int chan1Neutral = min(chan1Min,chan1Max)+(abs(chan1Max-chan1Min)/2)+chan1correct;
+int chan2Neutral = min(chan2Min,chan2Max)+(abs(chan2Max-chan2Min)/2)+chan2correct;
+int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correct;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
@@ -114,6 +137,12 @@ void setup() {
 	Serial.println("Listening...");  
 
 	startupChime();
+
+	chan1servo.attach(servo1Pin);  // Foot motors left/right
+	chan2servo.attach(servo2Pin);  // Foot motors forward/back
+	chan3servo.attach(servo3Pin);  // Dome motor 
+
+	clearServos();
 
 	//delay(3000);
 	//getOP();
@@ -179,22 +208,36 @@ void loop() {
 
 void handleEvent() {
 
-	int joyx = rx.getData()[0];    // Left Right
-	int joyy = rx.getData()[1];    // Fwd Back
-	int accx = rx.getData()[2];    // Dome
-	//    int accy = rx.getData()[3];  // Nunchuk Y Acceleramator 
-	//    int accz = rx.getData()[4];  // Nunchuk Z Acceleramator
-	triggerEvent = rx.getData()[7];// TriggerEvent
-	//    int futureEvent = rx.getData()[8]; // Future Event Payload
+	int joyx = rx.getData()[0];				// Left/Right
+	int joyy = rx.getData()[1];				// Up/Down
+	int accx = rx.getData()[2];				// Nunchuk X Acceleramator
+	int accy = rx.getData()[3];				// Nunchuk Y Acceleramator
+	int accz = rx.getData()[4];				// Nunchuk Z Acceleramator
+	triggerEvent = rx.getData()[7];			// TriggerEvent
+	//int futureEvent = rx.getData()[8];	// Future Event Payload
 
 	/*
-	Serial.print(">> joyx =");Serial.print(joyx);								// DEBUG CODE
-	Serial.print("\tjoyy =");Serial.print(joyy);								// DEBUG CODE
-	Serial.print("\taccx =");Serial.print(accx);								// DEBUG CODE
-	Serial.print("\taccy =");Serial.print(accy);								// DEBUG CODE
-	Serial.print("\taccz =");Serial.print(accz);								// DEBUG CODE
-	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);				// DEBUG CODE
+	Serial.print(">> joyx =");Serial.print(joyx);
+	Serial.print("\tjoyy =");Serial.print(joyy);
+	Serial.print("\taccx =");Serial.print(accx);
+	Serial.print("\taccy =");Serial.print(accy);
+	Serial.print("\taccz =");Serial.print(accz);
+	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
 	*/
+
+	// Normalize, emulate "dead stick" zones...
+	
+	if (joyx < 120) { joyx = joyx; }
+	else if (joyx > 136) { joyx = joyx; }
+	else { joyx = 128; }
+
+	if (joyy < 128) { joyy = joyy; }
+	else if (joyy > 136) { joyy = joyy; }
+	else { joyy = 128; }
+	
+	//if (accx < 90) { accx = 60; }
+	//else if (accx > 160) { accx = 120; }
+	//else { accx = 90; }
 
 	switch (triggerEvent) {
 
@@ -202,23 +245,23 @@ void handleEvent() {
 		
 		case 252:
 			Serial.println("C Button Pressed");
-			if (joyy <= 70) {
+			if (joyy >= 133) {
 				// Joystick up, play "happy" sound:
 				randNum = random(41,83);
 				playSound(randNum);
-			} else if (joyx >= 110) {
+			} else if (joyx >= 133) {
 				// Joystick left, play "scared" sound:
 				randNum = random(83,137);
 				playSound(randNum);
-			} else if (joyx <= 70) {
+			} else if (joyx <= 123) {
 				// Joystick right, play "angry" sound:
 				randNum = random(137,150);
 				playSound(randNum);
-			} else if (joyy >= 110) {
+			} else if (joyy <= 123) {
 				// Joystick down, Send STOP command:
 				stopSound();
 			} else {
-				// Joystick down or neutral, play "casual" sound:
+				// Joystick neutral, play "casual" sound:
 				randNum = random(1,41);
 				playSound(randNum);
 			}
@@ -226,8 +269,17 @@ void handleEvent() {
 
 		case 253:
 			Serial.println("Z Button Pressed");
-			// Play cantina song:
-			playSound(152);
+
+			// Dome spin:
+
+			joyx = map(joyx, joyxmin, joyxmax, chan3Min, chan3Max);
+
+			Serial.print("Writing ");
+			Serial.print(joyx);
+			Serial.println(" to servo 3...");
+
+			chan3servo.write(joyx);
+
 			break;
 
 		case 254:
@@ -295,6 +347,10 @@ void handleEvent() {
 		case 19:
 			playSound(164);
 			break;
+
+		default:
+			clearServos();
+
 	}
 
 }
@@ -307,6 +363,12 @@ void startupChime() {
 	Serial2.write('t');
 	//Serial2.write(164);
 	Serial2.write(15);
+
+}
+
+void clearServos() {
+
+	chan3servo.write(chan3Neutral);
 
 }
 
@@ -326,6 +388,7 @@ void stopSound() {
 		Serial2.write('O');
 		mp3Playing = false;
 	}
+	clearServos();
 }
 
 void sendTelemetry() {

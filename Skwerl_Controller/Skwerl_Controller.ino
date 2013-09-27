@@ -266,14 +266,6 @@ ArduinoNunchuk nunchuk = ArduinoNunchuk();
 
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 
-// Nunchuck End Points Channel Adjustment 
-int chan1Min = 27;					// Channel 1 Min - Left Right  
-int chan1Max = 229;					// Channel 1 Max - Left Right
-int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
-int chan2Max = 232;					// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 77;					// Channel 3 Min - Dome Rotation  
-int chan3Max = 180;					// Channel 3 Max - Dome Rotation 
-
 byte triggerEvent;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -386,28 +378,13 @@ void loop() {
 	RXdata();
 
 	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
-	joyx = map(nunchuk.analogX, chan1Min, chan1Max, 60, 120);	// Channel 1 joyx & Channel 2 joyy from NunChuck Joystick
-	joyy = map(nunchuk.analogY, chan2Min, chan2Max, 120, 60);	// Map it to Min & Max of each channel
-	accx = nunchuk.accelX/2/2;									// ranges from approx 70 - 182
-	accy = nunchuk.accelY/2/2;									// ranges from approx 65 - 173
-	accz = nunchuk.accelZ/2/2;									// ranges from approx 65 - 173
-	zbut = nunchuk.zButton;										// either 0 or 1
-	cbut = nunchuk.cButton;										// either 0 or 1
-																// Switched Z & Y on purpose. Now: X = left/right, Y = up/down, Z = forward/back.
-
-	// Normalize, emulate "dead stick" zones...
-	
-	if (joyx < 82) { joyx = joyx; }
-	else if (joyx > 98) { joyx = joyx; }
-	else { joyx = 90; }
-
-	if (joyy < 82) { joyy = joyy; }
-	else if (joyy > 98) { joyy = joyy; }
-	else { joyy = 90; }
-	
-	if (accx < 90) { accx = 60; }
-	else if (accx > 160) { accx = 120; }
-	else { accx = 90; }
+	joyx = nunchuk.analogX;										// 0-255, center is 128
+	joyy = nunchuk.analogY;										// 0-255, center is 128
+	accx = nunchuk.accelX/2/2;									// Ranges from approx 70-182
+	accy = nunchuk.accelY/2/2;									// Ranges from approx 65-173
+	accz = nunchuk.accelZ/2/2;									// Ranges from approx 65-173
+	zbut = nunchuk.zButton;										// Either 0 or 1
+	cbut = nunchuk.cButton;										// Either 0 or 1
 
 	if (zbut == 1 && cbut == 0) { triggerEvent = 253; }
 	else if (zbut == 0 && cbut == 1) {triggerEvent = 252; }
@@ -909,16 +886,16 @@ void TXdata() {
 	payload[8]=0x00;			// 25 - Future USE
 
 	/*
-	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);			// DEBUG CODE
-	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);			// DEBUG CODE
-	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);			// DEBUG CODE
-	Serial.print("\taccy: "); Serial.print((byte)accy,DEC);			// DEBUG CODE
-	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);			// DEBUG CODE
-	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);			// DEBUG CODE
-	Serial.print("\tcbut: "); Serial.print((byte)cbut,DEC);			// DEBUG CODE
-	Serial.print("\ttrigger: "); Serial.println(triggerEvent);		// DEBUG CODE
+	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);
+	Serial.print("\tjoyy: "); Serial.print((byte)joyy,DEC);
+	Serial.print("\taccx: "); Serial.print((byte)accx,DEC);
+	Serial.print("\taccy: "); Serial.print((byte)accy,DEC);
+	Serial.print("\taccz: "); Serial.print((byte)accz,DEC);
+	Serial.print("\tzbut: "); Serial.print((byte)zbut,DEC);
+	Serial.print("\tcbut: "); Serial.print((byte)cbut,DEC);
+	Serial.print("\ttrigger: "); Serial.println(triggerEvent);
 	*/
-
+	
 	xbee.send(zbTx);
 
 	if (triggerEvent > 0) {
