@@ -142,8 +142,6 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	startupChime();
-
 	chan1servo.attach(servo1Pin);  // Foot motors left/right
 	chan2servo.attach(servo2Pin);  // Foot motors forward/back
 	chan3servo.attach(servo3Pin);  // Dome motor 
@@ -153,6 +151,8 @@ void setup() {
 
 	//delay(3000);
 	//getOP();
+	
+	startupChime();
 
 }
 

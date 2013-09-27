@@ -1,6 +1,6 @@
 /*
  * Astromech RSeries Controller for the R2 Builders Club
- * Skwerl's Fork 
+ * Skwerl's Fork
  *  
  * Heavily based on Michael Erwin's
  * RSeries Open Controller Project
