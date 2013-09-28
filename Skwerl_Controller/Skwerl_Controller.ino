@@ -738,7 +738,8 @@ void updateBattery(int battx, float vcc, String display) {
 
 	tft.setCursor(battx, 2);	
 	tft.setTextColor(GREEN);
-	if (vcc < 4.9) { tft.setTextColor(GRAY); }
+	if (vcc < 4.9) { tft.setTextColor(YELLOW); }
+	if (vcc < 4.0) { tft.setTextColor(RED); }
 	if (vcc >= 7) { tft.setTextColor(RED); }
 	tft.setTextSize(1);
 	if (vcc > 9.9) { tft.print("10+"); }
@@ -747,8 +748,8 @@ void updateBattery(int battx, float vcc, String display) {
 
 	tft.setCursor(battx, 10);	
 	tft.setTextColor(GREEN);
-	if (vcc < 4.9) { tft.setTextColor(GRAY); }
-	if (vcc >= 7) { tft.setTextColor(RED); }
+	if (vcc < 4.9) { tft.setTextColor(YELLOW); }
+	if (vcc < 4.0) { tft.setTextColor(RED); }
 	tft.setTextSize(1);
 	if (vcc > 9.9) { tft.print("10+"); }
 	else { tft.print(vcc,1); }
