@@ -234,19 +234,16 @@ void handleEvent() {
 	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
 	*/
 
-	// Normalize, emulate "dead stick" zones...
-	
-	if (joyx < 120) { joyx = joyx; }
-	else if (joyx > 136) { joyx = joyx; }
-	else { joyx = 128; }
-
-	if (joyy < 128) { joyy = joyy; }
-	else if (joyy > 136) { joyy = joyy; }
-	else { joyy = 128; }
-	
-	//if (accx < 90) { accx = 60; }
-	//else if (accx > 160) { accx = 120; }
-	//else { accx = 90; }
+	char* stick = "CENTER";
+	if (joyx <= 123) {
+		stick = "RIGHT";
+	} else if (joyx >= 133) {
+		stick = "LEFT";
+	} else if (joyy >= 133) {
+		stick = "UP";
+	} else if (joyy <= 123) {
+		stick = "DOWN";
+	}	
 
 	switch (triggerEvent) {
 
@@ -255,22 +252,22 @@ void handleEvent() {
 		case 252:
 			Serial.println("C Button Pressed");
 			// Play sound...
-			if (joyy >= 133) { // Joystick UP
+			if (stick == "UP") {
 				// Play "happy" sound:
 				randNum = random(41,83);
 				playSound(randNum);
-			} else if (joyx >= 133) { // Joystick LEFT
+			} else if (stick == "LEFT") {
 				// Play "scared" sound:
 				randNum = random(83,137);
 				playSound(randNum);
-			} else if (joyx <= 123) { // Joystick RIGHT
+			} else if (stick == "RIGHT") {
 				// Play "angry" sound:
 				randNum = random(137,150);
 				playSound(randNum);
-			} else if (joyy <= 123) { // Joystick DOWN
+			} else if (stick == "DOWN") {
 				// Send STOP command:
 				stopSound();
-			} else { // Joystick NEUTRAL
+			} else {
 				// Play "casual" sound:
 				randNum = random(1,41);
 				playSound(randNum);
@@ -280,25 +277,23 @@ void handleEvent() {
 		case 253:
 			Serial.println("Z Button Pressed");
 			// Spin dome...
-			joyx = map(joyx, joyxmin, joyxmax, chan3Min, chan3Max);
-			chan3servo.write(joyx);
+			if (stick == "LEFT" || stick == "RIGHT") {
+				joyx = map(joyx, joyxmin, joyxmax, chan3Min, chan3Max);
+				chan3servo.write(joyx);
+			} else {
+				chan3servo.write(chan3Neutral);
+			}
 			break;
 
 		case 254:
-			// Special stuff...
 			Serial.println("Z+C Buttons Pressed");
-			if (joyy >= 133) { // Joystick UP
+			// Special stuff...
+			if (stick == "UP") {
 				// Toggle Holos:
 				toggleHPs();
-			} else if (joyx >= 133) { // Joystick LEFT
-				// Placeholder...
-			} else if (joyx <= 123) { // Joystick RIGHT
-				// Placeholder...
-			} else if (joyy <= 123) { // Joystick DOWN
+			} else if (stick == "DOWN") {
 				// Play Leia's message:
 				playSound(156);
-			} else { // Joystick NEUTRAL
-				// Placeholder...
 			}
 			break;
 
