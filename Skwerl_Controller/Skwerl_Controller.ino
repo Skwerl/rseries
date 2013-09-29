@@ -904,7 +904,7 @@ void TXdata() {
 		if (radiostatus == "OK") {
 			tft.fillCircle(7, 9, 6, GREEN);          
 		}
-		delay(800);
+		//delay(800);
 	}
 	
 	updateSignal();
