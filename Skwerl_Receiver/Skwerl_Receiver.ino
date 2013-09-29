@@ -116,7 +116,7 @@ int chan1Min = 30;					// Channel 1 Min - Left/Right
 int chan1Max = 220;					// Channel 1 Max - Left/Right
 int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
 int chan2Max = 220;					// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 115;					// Channel 3 Min - Dome Rotation LEFT 
+int chan3Min = 150;					// Channel 3 Min - Dome Rotation LEFT 
 int chan3Max = 30;					// Channel 3 Max - Dome Rotation RIGHT
 
 // Weirdness Corrections
@@ -558,7 +558,7 @@ void autoPilot() {
 		//Serial.print("Timer Interval: "); Serial.println(timerInterval);
 		//Serial.print("Next Interval: "); Serial.println(nextInterval);
 		
-		int noiseSeed = random(0,80);			// 1 in X chance of a sound playng each loop...
+		int noiseSeed = random(0,2000);			// 1 in X chance of a sound playng each loop...
 		if (noiseSeed == 1) {
 			randomSound(moodChill, moodHappy, moodScary, moodAngry);
 		}
@@ -570,23 +570,23 @@ void autoPilot() {
 				case 1:
 					Serial.println("Step 1");
 
-					// Twitch dome left:
-					autoDomeCnt = 2;
-					autoDomePWM = 97;
+					// Twitch dome left over 3 loops:
+					autoDomeCnt = 3;
+					autoDomePWM = 130;
 
 					autoPilotStep++;
-					nextInterval = random(500,1500);
+					nextInterval = random(500,1000);
 					break;
 
 				case 2:
 					Serial.println("Step 2");
 
-					// Twitch dome right:
-					autoDomeCnt = 2;
-					autoDomePWM = 87;
+					// Twitch dome right over 3 loops:
+					autoDomeCnt = 3;
+					autoDomePWM = 50;
 
 					autoPilotStep++;
-					nextInterval = random(500,1500);
+					nextInterval = random(500,1000);
 					break;
 
 				default:
