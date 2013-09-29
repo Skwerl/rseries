@@ -59,6 +59,7 @@ int mp3Byte = 0;
 boolean mp3Playing = false;
 
 boolean holosOn = false;
+boolean domeSpinning = false;
 
 boolean moodChill = true;
 boolean moodHappy = false;
@@ -76,6 +77,20 @@ int accymax = 173;
 int acczmin = 65;
 int acczmax = 173;
 
+int stickMapped = 0;
+int stickCenterX = 128;
+int stickCenterY = 128;
+
+// Autopilot
+boolean autoPilotEngaged = false;
+unsigned long autoPilotTimer;
+unsigned long baseInterval = 0;
+int nextInterval = 0;
+int autoPilotStep = 1;
+int autoLoopCount = 0;
+int autoDomeCnt = 0;
+int autoDomePWM = 90;
+
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* PWM & Servo Configuration *////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -85,24 +100,24 @@ Servo chan2servo;
 Servo chan3servo;
 Servo chan4servo;
 
-int servo1Pin = 2;		// Channel 1
-int servo2Pin = 3;		// Channel 2
-int servo3Pin = 4;		// Channel 3
-int servo4Pin = 5;		// Channel 4
-int servo5Pin = 7;		// Channel 5
-int servo6Pin = 8;		// Channel 6
-int servo7Pin = 9;		// Channel 7
-int servo8Pin = 10;		// Channel 8
-int servo9Pin = 11;		// Channel 9
-int servo10Pin = 12;	// Channel 10
+int servo1Pin = 2;					// Channel 1
+int servo2Pin = 3;					// Channel 2
+int servo3Pin = 4;					// Channel 3
+int servo4Pin = 5;					// Channel 4
+int servo5Pin = 7;					// Channel 5
+int servo6Pin = 8;					// Channel 6
+int servo7Pin = 9;					// Channel 7
+int servo8Pin = 10;					// Channel 8
+int servo9Pin = 11;					// Channel 9
+int servo10Pin = 12;				// Channel 10
 
 // Ranges
-int chan1Min = 30;			// Channel 1 Min - Left/Right  
-int chan1Max = 220;			// Channel 1 Max - Left/Right
-int chan2Min = 30;			// Channel 2 Min - Forward & Reverse Speed 
-int chan2Max = 220;			// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 140;			// Channel 3 Min - Dome Rotation LEFT 
-int chan3Max = 40;			// Channel 3 Max - Dome Rotation RIGHT
+int chan1Min = 30;					// Channel 1 Min - Left/Right  
+int chan1Max = 220;					// Channel 1 Max - Left/Right
+int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
+int chan2Max = 220;					// Channel 2 Max - Forward & Reverse Speed
+int chan3Min = 115;					// Channel 3 Min - Dome Rotation LEFT 
+int chan3Max = 30;					// Channel 3 Max - Dome Rotation RIGHT
 
 // Weirdness Corrections
 int chan1correct = 0;
@@ -112,7 +127,7 @@ int chan3correct = -2;
 // Neutral Adjustments 
 int chan1Neutral = min(chan1Min,chan1Max)+(abs(chan1Max-chan1Min)/2)+chan1correct;
 int chan2Neutral = min(chan2Min,chan2Max)+(abs(chan2Max-chan2Min)/2)+chan2correct;
-int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correct;
+int chan3Neutral = 88;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
@@ -153,7 +168,11 @@ void setup() {
 	chan3servo.attach(servo3Pin);  // Dome motor 
 	chan4servo.attach(servo4Pin);  // HPs switch 
 
+	stickCenterX = min(joyxmin,joyxmax)+(abs(joyxmax-joyxmin)/2);
+	stickCenterY = min(joyymin,joyymax)+(abs(joyymax-joyymin)/2);
+
 	clearServos();
+	autoDomePWM = chan3Neutral;
 
 	//delay(3000);
 	//getOP();
@@ -165,6 +184,8 @@ void setup() {
 }
 
 void loop() {
+
+	autoPilotTimer = millis();
 
 	loop_cnt++;
 
@@ -216,6 +237,9 @@ void loop() {
 		Serial.print("Error reading packet.  Error code: ");  
 		Serial.println(xbee.getResponse().getErrorCode());
 	}
+	
+	autoPilot();
+
 }
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -279,10 +303,16 @@ void handleEvent() {
 		case 253:
 			Serial.println("Z Button Pressed");
 			// Spin dome...
-			if (stick == "LEFT" || stick == "RIGHT") {
-				joyx = map(joyx, joyxmin, joyxmax, chan3Min, chan3Max);
-				chan3servo.write(joyx);
+			if (stick == "LEFT") {
+				domeSpinning = true;
+				stickMapped = map(joyx, stickCenterX, joyxmin, chan3Neutral, chan3Min);
+				chan3servo.write(stickMapped);
+			} else if (stick == "RIGHT") {
+				domeSpinning = true;
+				stickMapped = map(joyx, stickCenterX, joyxmax, chan3Neutral, chan3Max);
+				chan3servo.write(stickMapped);
 			} else {
+				domeSpinning = false;
 				chan3servo.write(chan3Neutral);
 			}
 			break;
@@ -305,7 +335,9 @@ void handleEvent() {
 			toggleHPs();
 			break;
 		case 2:
-			playSound(15);
+			Serial.println("Toggling autopilot... ");
+			Serial.println(autoPilotEngaged);
+			autoPilotEngaged = !autoPilotEngaged;
 			break;
 		case 3:
 			moodChill = !moodChill;
@@ -392,6 +424,7 @@ void startupChime() {
 
 void clearServos() {
 
+	domeSpinning = false;
 	chan3servo.write(chan3Neutral);
 
 }
@@ -497,6 +530,79 @@ void getOP() {
 ///////////////////////* Custom Droid Functions *///////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+void autoPilot() {
+
+	if (autoPilotEngaged) {
+
+		autoLoopCount++;
+		if (autoLoopCount <= autoDomeCnt) {
+			if (!domeSpinning) {
+				chan3servo.write(autoDomePWM);
+			}
+		} else {
+			autoDomeCnt = 0;
+			autoLoopCount = 0;
+			if (!domeSpinning) {
+				chan3servo.write(chan3Neutral);
+			}
+		}
+
+		// Init lastInterval:
+		if (baseInterval == 0) {
+			baseInterval = autoPilotTimer;
+			nextInterval = random(4000,5000);
+		}
+		unsigned long timerInterval = (autoPilotTimer-baseInterval);
+	
+		//Serial.print("Base Interval: "); Serial.println(baseInterval);
+		//Serial.print("Timer Interval: "); Serial.println(timerInterval);
+		//Serial.print("Next Interval: "); Serial.println(nextInterval);
+		
+		int noiseSeed = random(0,80);			// 1 in X chance of a sound playng each loop...
+		if (noiseSeed == 1) {
+			randomSound(moodChill, moodHappy, moodScary, moodAngry);
+		}
+
+		if (timerInterval >= nextInterval) {
+
+			switch(autoPilotStep) {
+			
+				case 1:
+					Serial.println("Step 1");
+
+					// Twitch dome left:
+					autoDomeCnt = 2;
+					autoDomePWM = 97;
+
+					autoPilotStep++;
+					nextInterval = random(500,1500);
+					break;
+
+				case 2:
+					Serial.println("Step 2");
+
+					// Twitch dome right:
+					autoDomeCnt = 2;
+					autoDomePWM = 87;
+
+					autoPilotStep++;
+					nextInterval = random(500,1500);
+					break;
+
+				default:
+					Serial.println("Loop");
+					autoPilotStep = 1;
+
+			}
+
+			baseInterval = 0;
+
+		}
+
+	}
+
+}
+
 void playSound(int sample) {
 	if (mp3Playing == false) {
 		Serial.print("Playing sample #");
@@ -534,6 +640,9 @@ void randomSound(boolean chill, boolean happy, boolean scary, boolean angry) {
 		// Angry mode:
 		Serial.print("Playing angry sound...");
 		randNum = random(137,150);
+	} else if (!chill && !happy && !scary && !angry) {
+		// No mode selected, pick anything or else we go into an endless loop:
+		randNum = random(1,150);
 	} else {
 		// Multiple moods active, loop for appropriate sound ID...
 		Serial.print("Selecting from multiple: ");
