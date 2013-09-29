@@ -60,6 +60,11 @@ boolean mp3Playing = false;
 
 boolean holosOn = false;
 
+boolean moodChill = true;
+boolean moodHappy = false;
+boolean moodScary = false;
+boolean moodAngry = false;
+
 int joyxmin = 0;
 int joyxmax = 255;
 int joyymin = 0;
@@ -96,13 +101,13 @@ int chan1Min = 30;			// Channel 1 Min - Left/Right
 int chan1Max = 220;			// Channel 1 Max - Left/Right
 int chan2Min = 30;			// Channel 2 Min - Forward & Reverse Speed 
 int chan2Max = 220;			// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 105;			// Channel 3 Min - Dome Rotation LEFT 
-int chan3Max = 75;			// Channel 3 Max - Dome Rotation RIGHT
+int chan3Min = 140;			// Channel 3 Min - Dome Rotation LEFT 
+int chan3Max = 40;			// Channel 3 Max - Dome Rotation RIGHT
 
 // Weirdness Corrections
 int chan1correct = 0;
 int chan2correct = 0;
-int chan3correct = -2;		// Syren10 neutral is more like 92
+int chan3correct = -2;
 
 // Neutral Adjustments 
 int chan1Neutral = min(chan1Min,chan1Max)+(abs(chan1Max-chan1Min)/2)+chan1correct;
@@ -154,6 +159,8 @@ void setup() {
 	//getOP();
 
 	startupChime();
+	
+	//testServo();
 
 }
 
@@ -235,9 +242,9 @@ void handleEvent() {
 	*/
 
 	char* stick = "CENTER";
-	if (joyx <= 123) {
+	if (joyx >= 133) {
 		stick = "RIGHT";
-	} else if (joyx >= 133) {
+	} else if (joyx <= 123) {
 		stick = "LEFT";
 	} else if (joyy >= 133) {
 		stick = "UP";
@@ -254,23 +261,18 @@ void handleEvent() {
 			// Play sound...
 			if (stick == "UP") {
 				// Play "happy" sound:
-				randNum = random(41,83);
-				playSound(randNum);
+				randomSound(false, true, false, false);
 			} else if (stick == "LEFT") {
 				// Play "scared" sound:
-				randNum = random(83,137);
-				playSound(randNum);
+				randomSound(false, false, true, false);
 			} else if (stick == "RIGHT") {
 				// Play "angry" sound:
-				randNum = random(137,150);
-				playSound(randNum);
+				randomSound(false, false, false, true);
 			} else if (stick == "DOWN") {
 				// Send STOP command:
 				stopSound();
 			} else {
-				// Play "casual" sound:
-				randNum = random(1,41);
-				playSound(randNum);
+				randomSound(moodChill, moodHappy, moodScary, moodAngry);
 			}
 			break;
 
@@ -306,54 +308,67 @@ void handleEvent() {
 			playSound(15);
 			break;
 		case 3:
-			playSound(15);
+			moodChill = !moodChill;
+			Serial.print("chill? "); Serial.println(moodChill);
 			break;
 		case 4:
-			playSound(43);
+			moodHappy = !moodHappy;
+			Serial.print("happy? "); Serial.println(moodHappy);
 			break;
 		case 5:
-			playSound(150);
+			moodScary = !moodScary;
+			Serial.print("scary? "); Serial.println(moodScary);
 			break;
 		case 6:
-			playSound(151);
+			moodAngry = !moodAngry;
+			Serial.print("angry? "); Serial.println(moodAngry);
 			break;
 		case 7:
-			playSound(152);
+			playSound(43);
 			break;
 		case 8:
-			playSound(153);
+			playSound(150);
 			break;
 		case 9:
-			playSound(154);
+			playSound(151);
 			break;
 		case 10:
-			playSound(155);
+			playSound(152);
 			break;
 		case 11:
-			playSound(156);
+			playSound(153);
 			break;
 		case 12:
-			playSound(157);
+			playSound(154);
 			break;
 		case 13:
-			playSound(158);
+			playSound(155);
 			break;
 		case 14:
-			playSound(159);
+			playSound(156);
 			break;
 		case 15:
-			playSound(160);
+			playSound(157);
 			break;
 		case 16:
-			playSound(161);
+			playSound(158);
 			break;
 		case 17:
-			playSound(162);
+			playSound(159);
 			break;
 		case 18:
-			playSound(163);
+			playSound(160);
 			break;
 		case 19:
+			playSound(161);
+			break;
+		case 20:
+			playSound(162);
+			break;
+		case 21:
+			playSound(163);
+			break;
+		case 22:
 			playSound(164);
 			break;
 
@@ -501,6 +516,43 @@ void stopSound() {
 	clearServos();
 }
 
+void randomSound(boolean chill, boolean happy, boolean scary, boolean angry) {
+	// Play "casual" sound, or random sound apprpriate for mood:
+	if (chill && !happy && !scary && !angry) {
+		// Casual mode:
+		Serial.print("Playing casual sound...");
+		randNum = random(1,41);
+	} else if (!chill && happy && !scary && !angry) {
+		// Happy mode:
+		Serial.print("Playing happy sound...");
+		randNum = random(41,83);
+	} else if (!chill && !happy && scary && !angry) {
+		// Scared mode:
+		Serial.print("Playing cautious sound...");
+		randNum = random(83,137);
+	} else if (!chill && !happy && !scary && angry) {
+		// Angry mode:
+		Serial.print("Playing angry sound...");
+		randNum = random(137,150);
+	} else {
+		// Multiple moods active, loop for appropriate sound ID...
+		Serial.print("Selecting from multiple: ");
+		Serial.print(chill); Serial.print(" ");
+		Serial.print(happy); Serial.print(" ");
+		Serial.print(scary); Serial.print(" ");
+		Serial.print(angry); Serial.println(" ");
+		boolean goodSound = false;
+		while (!goodSound) {
+			randNum = random(1,150);
+			if (((randNum>=1)&&(randNum<41)) && chill) { goodSound = true; }
+			if (((randNum>=41)&&(randNum<83)) && happy) { goodSound = true; }
+			if (((randNum>=83)&&(randNum<137)) && scary) { goodSound = true; }
+			if (((randNum>=137)&&(randNum<=149)) && angry) { goodSound = true; }
+		}
+	}
+	playSound(randNum);
+}
+
 void toggleHPs() {
 	if (holosOn) {
 		Serial.println("HPs OFF");
@@ -509,6 +561,34 @@ void toggleHPs() {
 		Serial.println("HPs ON");
 		chan4servo.write(100);
 	}
-	delay(800);
 	holosOn = !holosOn;
+}
+
+void testServo() {
+
+	// Repurposeable function for testing servo ranges...
+
+	int i = 0;
+	boolean reverse = false;
+
+	while(1) {
+
+		if (i > 255) { reverse = true; }
+		if (i < 0) { reverse = false; }
+
+		chan3servo.write(i);
+
+		Serial.print("PWM Signal: ");
+		Serial.println(i);
+	
+		if (!reverse) {
+			i++;		
+		} else {
+			i--;
+		}
+		
+		delay(500);
+	
+	}
+
 }

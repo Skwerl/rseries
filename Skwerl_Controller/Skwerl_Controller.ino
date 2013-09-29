@@ -96,16 +96,19 @@
 ///////////////////////* Trigger Configuration *////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-#define TOTAL_TRIGGERS 19
-#define TOTAL_STICKY 3
+#define TOTAL_TRIGGERS 22
+#define TOTAL_STICKY 6
 
 //  Until TX payload has been reworked, we have a limit of 251 triggers.
 //  Trigger names should be 13 characters or less.
 //  |-------------|
 char* gridTriggers[TOTAL_TRIGGERS] = {
 	"Holos",
-	"Sticky 2",
-	"Sticky 3",
+	"Autopilot",
+	"Casual",
+	"Happy",
+	"Cautious",
+	"Angry",	
 	"Laugh",
 	"Alarm 1",
 	"Alarm 2",	
@@ -125,12 +128,16 @@ char* gridTriggers[TOTAL_TRIGGERS] = {
 };
 
 int stickyTriggers[TOTAL_STICKY] = {
-	1,2,3
+	1,2,3,4,5,6
 };
 
 int boxWidth = 100;
 int boxHeight = 52;
 int boxMargin = 10;
+
+int boxesPerRow = 3;
+int rowsPerPage = 3;
+int itemsPerPage = boxesPerRow*rowsPerPage;
 
 int hashMapIndex = 0;
 HashType<int,boolean> hashRawArray[TOTAL_TRIGGERS]; 
@@ -140,10 +147,6 @@ HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TOTAL_TRIGG
 ///////////////////////* LCD Display Configuration *////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int boxesPerRow = 3;
-int rowsPerPage = 3;
-
-int itemsPerPage = boxesPerRow*rowsPerPage;
 int countedPages = 0;
 int curPage = 1;
 
@@ -361,8 +364,10 @@ void setup() {
 	bootTests();										// Display POST Routine on TFT
 
 	tft.fillScreen(BLACK);	
-	updateStatus();										// Displays status bar at TOP
+	updateStatus();										// Displays status bar at top
 	updateGrid();
+
+	toggleStickyTrigger(3);								// Casual mood on by default
 
 	//  nextrx1time = millis();							// 
 	
@@ -575,8 +580,8 @@ void updateStatus() {
 	tft.drawFastHLine(0, 19, tft.width(), WHITE);
 
 	updateRSSI();
-	updateBattery(175,txVCCout,"TX");
-	updateBattery(235,rxVCCout,"RX");
+	updateBattery(180,txVCCout,"TX");
+	updateBattery(242,rxVCCout,"RX");
 
 	updateSignal();
 
@@ -826,7 +831,7 @@ void getTouch() {
 			}
 
 		}
-
+		
 	}
 
 }
@@ -899,9 +904,9 @@ void TXdata() {
 		if (radiostatus == "OK") {
 			tft.fillCircle(7, 9, 6, GREEN);          
 		}
+		delay(800);
 	}
 	
-	delay(200);
 	updateSignal();
 	triggerEvent=0;
 	zbut=0;
@@ -1012,14 +1017,29 @@ void toggleStickyTrigger(int trigger) {
 
 	boolean triggerState = stickyHash.getValueOf(trigger);
 	int triggerIndex = stickyHash.getIndexOf(trigger);
-	
-	int touchedPadX = (((boxWidth+boxMargin)*(touchedCol-1))+0);
-	int touchedPadY = (((boxHeight+boxMargin)*(touchedRow-1))+20+boxMargin);
 
-	if (triggerState) {
-		tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, GRAY);			
-	} else {
-		tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, WHITE);			
+	if ((trigger <= (startAt+itemsPerPage)) && (trigger > startAt)) {
+
+		int screenPos = trigger-startAt;
+		int screenRow = (trigger/boxesPerRow)+1;
+		int screenCol = (trigger%boxesPerRow);
+		if (screenCol == 0) {
+			screenRow--;
+			screenCol = boxesPerRow;
+		}
+		//Serial.print("Touched pad: ");
+		//Serial.print(screenRow); Serial.print(",");
+		//Serial.println(screenCol);
+
+		int touchedPadX = (((boxWidth+boxMargin)*(screenCol-1))+0);
+		int touchedPadY = (((boxHeight+boxMargin)*(screenRow-1))+20+boxMargin);
+
+		if (triggerState) {
+			tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, GRAY);			
+		} else {
+			tft.drawRect(touchedPadX, touchedPadY, boxWidth, boxHeight, WHITE);			
+		}
+
 	}
 
 	triggerState = !triggerState;
