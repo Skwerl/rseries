@@ -135,12 +135,13 @@ int chan3Neutral = 88;
 
 int loop_cnt = 0;
 
+byte txSignature = 0;
+byte txResponder = 0;
+
 int txRSSI;
 
 unsigned int txVCC = 0;
 unsigned int txVCA = 0;
-
-int rxErrorCount = 0;
 
 int analogVCCinput = 5;									// RSeries Receiver default VCC input is A5
 float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
@@ -191,7 +192,8 @@ void loop() {
 
 	if (loop_cnt > 40) {
 		getRSSI();
-		sendTelemetry();
+		getVCC();
+		getVCA();
 		loop_cnt = 0;
 	}
 
@@ -230,14 +232,16 @@ void loop() {
 			} else {
 				Serial.println("Hmm...");  
 			}
-		} else {
-			Serial.println("WTF?");  
+	//	} else {
+	//		Serial.println("WTF?");  
 		}
 	} else if (xbee.getResponse().isError()) {
-		Serial.print("Error reading packet.  Error code: ");  
-		Serial.println(xbee.getResponse().getErrorCode());
+		//Serial.print("Error reading packet.  Error code: ");  
+		//Serial.println(xbee.getResponse().getErrorCode());
 	}
-	
+
+	sendTelemetry();
+
 	autoPilot();
 
 }
@@ -253,8 +257,12 @@ void handleEvent() {
 	int accx = rx.getData()[2];				// Nunchuk X Acceleramator
 	int accy = rx.getData()[3];				// Nunchuk Y Acceleramator
 	int accz = rx.getData()[4];				// Nunchuk Z Acceleramator
-	triggerEvent = rx.getData()[7];			// TriggerEvent
-	//int futureEvent = rx.getData()[8];	// Future Event Payload
+	triggerEvent = rx.getData()[7];
+	byte gotSig = rx.getData()[8];
+
+	if (gotSig > 0) {
+		txSignature = rx.getData()[8];	
+	}
 
 	/*
 	Serial.print(">> joyx =");Serial.print(joyx);
@@ -335,25 +343,25 @@ void handleEvent() {
 			toggleHPs();
 			break;
 		case 2:
-			Serial.println("Toggling autopilot... ");
-			Serial.println(autoPilotEngaged);
+			//Serial.println("Toggling autopilot... ");
+			//Serial.println(autoPilotEngaged);
 			autoPilotEngaged = !autoPilotEngaged;
 			break;
 		case 3:
 			moodChill = !moodChill;
-			Serial.print("chill? "); Serial.println(moodChill);
+			//Serial.print("chill? "); Serial.println(moodChill);
 			break;
 		case 4:
 			moodHappy = !moodHappy;
-			Serial.print("happy? "); Serial.println(moodHappy);
+			//Serial.print("happy? "); Serial.println(moodHappy);
 			break;
 		case 5:
 			moodScary = !moodScary;
-			Serial.print("scary? "); Serial.println(moodScary);
+			//Serial.print("scary? "); Serial.println(moodScary);
 			break;
 		case 6:
 			moodAngry = !moodAngry;
-			Serial.print("angry? "); Serial.println(moodAngry);
+			//Serial.print("angry? "); Serial.println(moodAngry);
 			break;
 		case 7:
 			playSound(43);
@@ -431,17 +439,14 @@ void clearServos() {
 
 void sendTelemetry() {
 
-	getVCC();
-	getVCA();
-	
-	Serial.print("txVCC="); Serial.print(txVCC);
-	Serial.print("\ttxVCA="); Serial.println(txVCA);
+	//Serial.print("txVCC="); Serial.print(txVCC);
+	//Serial.print("\ttxVCA="); Serial.println(txVCA);
 	
 	payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
 	payload[1] = txVCA;									// Amperage to one decimal place * 10
 	payload[2] = txRSSI;								// RSSI Value 
-	payload[3] = '3';									// Future Use
-	payload[4] = '4';									// Future Use
+	payload[3] = txSignature;							// Signature of last executed signal
+	payload[4] = txResponder;							// Data to send back to receiver
 	payload[5] = '5';									// Future Use
 	
 	xbee.send(zbTx); 
@@ -453,7 +458,7 @@ void sendTelemetry() {
 	Serial.print("\t");   Serial.print(payload[3]);
 	Serial.print("\t");   Serial.print(payload[4]);
 	Serial.print("\t"); Serial.println(payload[5]);
-	Serial.println("\tSent zbTx");
+	//Serial.println("\tSent zbTx");
 
 }
 
@@ -467,7 +472,7 @@ void getVCC() {
 	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
 	txVCC = (vcc)*10;
 	
-	Serial.print("Battery Voltage: "); Serial.println(txVCC);
+	//Serial.print("Battery Voltage: "); Serial.println(txVCC);
 	
 }
   
@@ -568,7 +573,7 @@ void autoPilot() {
 			switch(autoPilotStep) {
 			
 				case 1:
-					Serial.println("Step 1");
+					//Serial.println("Step 1");
 
 					// Twitch dome left over 3 loops:
 					autoDomeCnt = 3;
@@ -579,7 +584,7 @@ void autoPilot() {
 					break;
 
 				case 2:
-					Serial.println("Step 2");
+					//Serial.println("Step 2");
 
 					// Twitch dome right over 3 loops:
 					autoDomeCnt = 3;
@@ -590,7 +595,7 @@ void autoPilot() {
 					break;
 
 				default:
-					Serial.println("Loop");
+					//Serial.println("Loop");
 					autoPilotStep = 1;
 
 			}
@@ -635,11 +640,11 @@ void randomSound(boolean chill, boolean happy, boolean scary, boolean angry) {
 	} else if (!chill && !happy && scary && !angry) {
 		// Scared mode:
 		Serial.print("Playing cautious sound...");
-		randNum = random(83,137);
+		randNum = random(137,150);
 	} else if (!chill && !happy && !scary && angry) {
 		// Angry mode:
 		Serial.print("Playing angry sound...");
-		randNum = random(137,150);
+		randNum = random(83,137);
 	} else if (!chill && !happy && !scary && !angry) {
 		// No mode selected, pick anything or else we go into an endless loop:
 		randNum = random(1,150);

@@ -247,13 +247,6 @@ boolean rxpacketvalid=false;
 boolean rxpacketstart=false;
 boolean txbegin=false;
 
-int t = 0;
-long lastrx1time;
-long lasttx1time;
-long nexttx1time;
-int rx1ErrorCount = 0;				// If >5 RX packets in a row are invalid, change status from OK to RX in YELLOW
-int rx1ErrorCountMAX = 8;			// if >8 & receive errors, change status from OK to RX in RED: 8 packets ~1 Sec
-
 uint8_t xbRSSI;						// Used to store Pulse Width from RSSIpin
 
 int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
@@ -275,7 +268,24 @@ byte triggerEvent;
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int updateStatusDelay = 3500;							// Update Status Bar Display every 5000ms (5 Seconds), caution on reducing to low
+byte txSignature = 0;
+byte rxSignature = 0;
+byte rxResponded = 0;
+byte lastSigSent = txSignature;
+
+int signalCode = 0;										// 0:  No Radio
+														// 1:  Radio OK
+														// 2:  Sending Signal
+														// 3:  Signal Received
+														// -1: Signal Timeout
+
+int signalTimeout = 3000;								// How long do we wait for signal to be received?
+unsigned long signalLastSent = 0;
+unsigned long signalNextMilli = 0;
+unsigned long lastTransmission = 0;
+
+int updateStatusDelay = 3500;							// Update Status Bar Display every 3500ms (3.5 Seconds), caution on reducing
+unsigned long nextStatusBarUpdate = 0;
 
 int analogVCCinput = 5;									// RSeries Controller default VCC input is A5
 float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
@@ -310,11 +320,6 @@ float redVCC = 11.5;
 float yellowVCA = 50.0;									// If current goes ABOVE these thresholds, text will turn yellow then red.
 float redVCA = 65.0;
 */
-
-long lastStatusBarUpdate = 0;
-long nextStatusBarUpdate = 0;
-
-char* radiostatus = "...";
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
@@ -369,8 +374,6 @@ void setup() {
 
 	toggleStickyTrigger(3);								// Casual mood on by default
 
-	//  nextrx1time = millis();							// 
-	
 }
 
 void loop() {
@@ -392,8 +395,9 @@ void loop() {
 	else if (zbut == 1 && cbut == 1) {triggerEvent = 254; }
 	
 	getTouch();
-	
 	TXdata();
+	updateSignal();
+	checkPulse();
 
 	if (millis() >= nextStatusBarUpdate) {
 		updateStatus();
@@ -492,7 +496,7 @@ void bootTests() {
 		Serial.print("xbATResponse = ");				// DEBUG CODE
 		Serial.println(xbATResponse, HEX);				// DEBUG CODE
 		if (xbATResponse == 0x00) {						// to verify Coordinator XBee is setup and ready.
-			radiostatus = "OK";
+			signalCode = 1;
 			transmitterstatus = true;
 			Serial.println("Transmitter Status Good");	// DEBUG CODE
 		}
@@ -538,7 +542,7 @@ void bootTests() {
 		}
 		delay(1000);
 	}
-	Serial.println("Receiver Responded, Status Good");   // DEBUG CODE
+	Serial.println("Receiver Responded...");   // DEBUG CODE
 	tft.fillRect(220, 100, 100, 17, BLACK);
 	tft.setCursor(220,100);
 	tft.setTextColor(GREEN);
@@ -559,6 +563,7 @@ void bootTests() {
 		//Serial.print("\trxVCA =");Serial.println(rxVCA);
 		if (rxVCC > 0 && rxVCA > 0) {
 			telemetrystatus = true;
+			signalCode = 1;
 		}
 	}
 	
@@ -582,8 +587,6 @@ void updateStatus() {
 	updateRSSI();
 	updateBattery(180,txVCCout,"TX");
 	updateBattery(242,rxVCCout,"RX");
-
-	updateSignal();
 
 	nextStatusBarUpdate = millis() + updateStatusDelay;
 
@@ -706,9 +709,11 @@ void updateRSSI() {
 	}
 
 	if (bars<1) {
-		radiostatus = "...";
+		signalCode = 0;
 	} else {
-		radiostatus = "OK";
+		if (signalCode < 2) {
+			signalCode = 1;
+		}
 	}
 
 }
@@ -763,11 +768,51 @@ void updateBattery(int battx, float vcc, String display) {
 }
 
 void updateSignal() {
-	if (radiostatus == "OK") {
-		tft.fillCircle(7, 9, 6, WHITE);          
-	} else {
-		tft.drawCircle(7, 9, 6, GRAY);
+
+	int signalLag = 600; // Meaningful signals shouldn't blink by too quick...
+
+	boolean displayDelay = true;
+	unsigned long thisMilli = millis();
+	
+	Serial.print("signalCode: ");
+	Serial.print(signalCode);
+	Serial.print(" tx/rx signatures: ");
+	Serial.print(txSignature);
+	Serial.print("/");
+	Serial.println(rxSignature);
+
+	if ((signalCode == 2) && (thisMilli >= signalLastSent+signalTimeout)) {
+		signalCode = -1;
+		newSignature();
 	}
+
+	if (thisMilli >= signalNextMilli) {
+		displayDelay = false;
+	}
+
+	if (!displayDelay) {
+		switch(signalCode) {
+			case -1:
+				tft.fillCircle(7, 9, 6, RED);
+				break;
+			case 1:
+				tft.fillCircle(7, 9, 6, WHITE);
+				break;	
+			case 2:
+				tft.fillCircle(7, 9, 6, YELLOW);
+				break;	
+			case 3:
+				tft.fillCircle(7, 9, 6, GREEN);
+				break;
+			default:
+				tft.fillCircle(7, 9, 6, GRAY);
+		}
+		if (signalCode == 3) {
+			signalCode = 1;
+		}
+		signalNextMilli = thisMilli+signalLag;
+	}
+
 }
 
 void getTouch() {  
@@ -842,8 +887,12 @@ void RXdata() {
 	
 	if (xbee.getResponse().isAvailable()) {
 	
-	//	if (xbee.getResponse().getApiId() == RX_64_RESPONSE || xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
+
+			lastTransmission = millis();
+			if (signalCode < 2) {
+				signalCode = 1;
+			}
 
 			Serial.println("Got ZB_RX_RESPONSE...");
 
@@ -862,12 +911,21 @@ void RXdata() {
 			rxVCA = rx.getData()[1];
 			rxRssi = rx.getData()[2];
 
+			rxSignature = rx.getData()[3];
+			rxResponded = rx.getData()[4];
+
 			rxVCCout = (float)rxVCC/10.0;
 			rxVCAout = (float)rxVCA/10.0;
 
 			Serial.print("Receiver RSSI: "); Serial.println(rxRssi);
 			Serial.print("Receiver Voltage: "); Serial.println(rxVCCout);
 			Serial.print("Receiver Amperage: "); Serial.println(rxVCAout);
+
+			if ((signalCode == 2) && (txSignature == rxSignature)) {
+				signalCode = 3;
+				signalNextMilli = 0;
+				newSignature();
+			}
 
 		}
 
@@ -877,15 +935,20 @@ void RXdata() {
 
 void TXdata() {
 
-	payload[0]=joyx;			// 17 JoyX ranges from approx 30 - 220
-	payload[1]=joyy;			// 18 JoyY ranges from approx 29 - 230
-	payload[2]=accx;			// 19 AccX ranges from approx 70 - 182
-	payload[3]=accy;			// 20 AccY ranges from approx 65 - 173
-	payload[4]=accz;			// 21 AccZ ranges from approx 65 - 173
-	payload[5]=zbut;			// 22 ZButton Status
-	payload[6]=cbut;  			// 23 CButton Status
-	payload[7]=triggerEvent;	// 24 0 to 254  If you have more than 254 events... need to rework event code
-	payload[8]=0x00;			// 25 - Future USE
+	byte sendSig = 0;
+	if (triggerEvent > 0) {
+		sendSig = txSignature;
+	}
+
+	payload[0]=joyx;			// JoyX ranges from approx 30 - 220
+	payload[1]=joyy;			// JoyY ranges from approx 29 - 230
+	payload[2]=accx;			// AccX ranges from approx 70 - 182
+	payload[3]=accy;			// AccY ranges from approx 65 - 173
+	payload[4]=accz;			// AccZ ranges from approx 65 - 173
+	payload[5]=zbut;			// Z Button Status
+	payload[6]=cbut;  			// C Button Status
+	payload[7]=triggerEvent;	// 0 to 254
+	payload[8]=sendSig;			// Signature of triggerEvent
 
 	/*
 	Serial.print("joyx: "); Serial.print((byte)joyx,DEC);
@@ -901,14 +964,13 @@ void TXdata() {
 	xbee.send(zbTx);
 
 	if (triggerEvent > 0) {
-		if (radiostatus == "OK") {
-			tft.fillCircle(7, 9, 6, GREEN);          
-		}
-		//delay(800);
+		signalCode = 2;
+		signalLastSent = millis();
+		signalNextMilli = 0;
+		lastSigSent = txSignature;
 	}
 	
-	updateSignal();
-	triggerEvent=0;
+	triggerEvent = 0;
 	zbut=0;
 	cbut=0;
 
@@ -971,6 +1033,16 @@ void getVCC() {
 
 void getVCA() {
 	//VCAvalue = random(1,999);
+}
+
+void checkPulse() {
+	unsigned long timeNow = millis();
+	if (timeNow >= (lastTransmission+signalTimeout+1000)) {
+		signalCode = 0;
+		signalNextMilli = 0;
+		rxVCCout = 0;
+		rxRssi = rssiMin;
+	}
 }
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -1044,6 +1116,13 @@ void toggleStickyTrigger(int trigger) {
 
 	triggerState = !triggerState;
 	stickyHash[triggerIndex](trigger,triggerState);
+}
+
+void newSignature() {
+	txSignature++;
+	if (txSignature >= 250) {
+		txSignature = 0;
+	}
 }
 
 String pad(int number, byte width) {
