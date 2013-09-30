@@ -88,7 +88,7 @@
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 #define codeBranch "Skwerl's R-Series"
-#define codeVersion "0.6"
+#define codeVersion "0.7"
 #define astromechName "R2-D2"
 #define astromechOwner "Kevin Cogill"
 
@@ -141,7 +141,9 @@ int itemsPerPage = boxesPerRow*rowsPerPage;
 
 int hashMapIndex = 0;
 HashType<int,boolean> hashRawArray[TOTAL_TRIGGERS]; 
-HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TOTAL_TRIGGERS); 
+HashMap<int,boolean> stickyHash = HashMap<int,boolean>(hashRawArray, TOTAL_TRIGGERS);
+
+int verifySticky = 0;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* LCD Display Configuration *////////////////////////////////////////////////
@@ -186,29 +188,33 @@ Adafruit_TFTLCD tft(LCD_CS, LCD_CD, LCD_WR, LCD_RD, LCD_RESET);
 
 // For better pressure precision, we need to know the resistance between X+ and X-
 // Use any multimeter to read it. Sample baseline is 300 (ohms)
+
 #define XR 200
-int sensitivity = 30;	// Default is 10
-						// But this is in relation to X resistance
+int sensitivity = 30;					// Default is 10
+										// But this is in relation to X resistance
 
-						// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
-#define YM 9			// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
-#define XM A8			// X- (Minus) must be an analog pin, use "An" notation! // Orig A2
-#define YP A9			// Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
-#define XP 8			// X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
+										// Touch Screen Pin Configuration - Need to change A2 & A3, so as not to share
+#define YM 9							// Y- (Minus) digital pin UNO = D9, MEGA = 9   // Orig 9
+#define XM A8							// X- (Minus) must be an analog pin, use "An" notation! // Orig A2
+#define YP A9							// Y+ (Plus)  must be an analog pin, use "An" notation! // Orig A3
+#define XP 8							// X+ (Plus)  digital pin UNO = 8, MEGA = 8   // Orig 9
 
-						// These can be adjusted for greater precision 
-#define TS_MINX 131		// Orig = 150
-#define TS_MINY 120		// Orig = 120
-#define TS_MAXX 920		// Orig = 920
-#define TS_MAXY 950		// Orig = 940
+										// These can be adjusted for greater precision 
+#define TS_MINX 131						// Orig = 150
+#define TS_MINY 120						// Orig = 120
+#define TS_MAXX 920						// Orig = 920
+#define TS_MAXY 950						// Orig = 940
 
-#define rotation 3		// Which only changes the orientation of the LCD not the touch screen
+#define rotation 3						// Which only changes the orientation of the LCD not the touch screen
 
 uint16_t touchedY;
 uint16_t touchedX;
 
 int touchedRow;
 int touchedCol;
+
+unsigned long lastTouch = 0;
+unsigned long touchWait = 800;			// Don't register a second touch event until X millis have passed
 
 TouchScreen ts = TouchScreen(XP, YP, XM, YM, XR);
 
@@ -774,15 +780,17 @@ void updateSignal() {
 	boolean displayDelay = true;
 	unsigned long thisMilli = millis();
 	
-	Serial.print("signalCode: ");
-	Serial.print(signalCode);
-	Serial.print(" tx/rx signatures: ");
-	Serial.print(txSignature);
-	Serial.print("/");
-	Serial.println(rxSignature);
+	//Serial.print("signalCode: ");
+	//Serial.print(signalCode);
+	//Serial.print(" tx/rx signatures: ");
+	//Serial.print(txSignature);
+	//Serial.print("/");
+	//Serial.println(rxSignature);
 
 	if ((signalCode == 2) && (thisMilli >= signalLastSent+signalTimeout)) {
+		// Timeout, give up on this signal...
 		signalCode = -1;
+		verifySticky = 0;
 		newSignature();
 	}
 
@@ -827,56 +835,63 @@ void getTouch() {
 
 	if (p.z > sensitivity) {
 
-		Serial.print("RAW X = "); Serial.print(p.x);				// DEBUG CODE
-		Serial.print("\tY = "); Serial.print(p.y);					// DEBUG CODE
-		Serial.print("\tPressure = "); Serial.print(p.z);			// DEBUG CODE
+		unsigned long timeNow = millis();
 
-		// We also have to re-align LCD X&Y to Touch X&Y
-		touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);				// Notice mapping touchedY to p.x
-		touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);				// Notice mapping touchedX to p.y
+		if (timeNow >= (lastTouch+touchWait)) {
 
-		Serial.print("\tTouched X = "); Serial.print(touchedX);		// DEBUG CODE
-		Serial.print("\tTouched Y = "); Serial.print(touchedY);		// DEBUG CODE
-		Serial.println(" ");										// DEBUG CODE
-		
-		if (touchedY >= 206 && touchedX < 160) {
-			curPage--;
-			if (curPage < 1) { curPage = countedPages; }
-			updateGrid();
-		}		
+			lastTouch = timeNow;
 
-		if (touchedY >= 206 && touchedX > 160) {
-			curPage++;
-			if (curPage > countedPages) { curPage = 1; }
-			updateGrid();
-		}		
-
-		if (touchedY >= 20 && touchedY <= 205) {
-
-			touchedRelativeX = touchedX;
-			touchedRelativeY = touchedY-20;
-
-			touchedRow = (touchedRelativeY/(186/rowsPerPage))+1;
-			touchedCol = (touchedRelativeX/(320/boxesPerRow))+1;
-
-			//Serial.print("Touched item: ");
-			//Serial.print(touchedRow);
-			//Serial.print(",");
-			//Serial.print(touchedCol);
-
-			triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
-
-			//Serial.print(" (");
-			//Serial.print(triggerEvent);
-			//Serial.println(")");
-
-			int touchedSticky = getStickyTrigger(stickyTriggers, triggerEvent);
-			if (touchedSticky >= 0) {
-				toggleStickyTrigger(triggerEvent);
+			Serial.print("RAW X = "); Serial.print(p.x);
+			Serial.print("\tY = "); Serial.print(p.y);
+			Serial.print("\tPressure = "); Serial.print(p.z);
+	
+			// We also have to re-align LCD X&Y to Touch X&Y
+			touchedY = map(p.x, TS_MINX, TS_MAXX, 240, 0);				// Notice mapping touchedY to p.x
+			touchedX = map(p.y, TS_MAXY, TS_MINY, 320, 0);				// Notice mapping touchedX to p.y
+	
+			Serial.print("\tTouched X = "); Serial.print(touchedX);
+			Serial.print("\tTouched Y = "); Serial.print(touchedY);
+			Serial.println(" ");
+			
+			if (touchedY >= 206 && touchedX < 160) {
+				curPage--;
+				if (curPage < 1) { curPage = countedPages; }
+				updateGrid();
+			}		
+	
+			if (touchedY >= 206 && touchedX > 160) {
+				curPage++;
+				if (curPage > countedPages) { curPage = 1; }
+				updateGrid();
+			}		
+	
+			if (touchedY >= 20 && touchedY <= 205) {
+	
+				touchedRelativeX = touchedX;
+				touchedRelativeY = touchedY-20;
+	
+				touchedRow = (touchedRelativeY/(186/rowsPerPage))+1;
+				touchedCol = (touchedRelativeX/(320/boxesPerRow))+1;
+	
+				//Serial.print("Touched item: ");
+				//Serial.print(touchedRow);
+				//Serial.print(",");
+				//Serial.print(touchedCol);
+	
+				triggerEvent = ((startAt+(touchedRow-1)*boxesPerRow)+touchedCol);
+	
+				//Serial.print(" (");
+				//Serial.print(triggerEvent);
+				//Serial.println(")");
+	
+				int touchedSticky = getStickyTrigger(stickyTriggers, triggerEvent);
+				if (touchedSticky >= 0) {
+					verifySticky = triggerEvent;
+				}
+	
 			}
-
 		}
-		
+
 	}
 
 }
@@ -894,10 +909,11 @@ void RXdata() {
 				signalCode = 1;
 			}
 
-			Serial.println("Got ZB_RX_RESPONSE...");
+			//Serial.println("Got ZB_RX_RESPONSE...");
 
 			xbee.getResponse().getZBRxResponse(rx);
 
+			/*
 			Serial.print("Rx:");
 			Serial.print("\t");   Serial.print(rx.getData()[0]);
 			Serial.print("\t");   Serial.print(rx.getData()[1]);
@@ -906,6 +922,7 @@ void RXdata() {
 			Serial.print("\t");   Serial.print(rx.getData()[4]);
 			Serial.print("\t"); Serial.println(rx.getData()[5]);
 			Serial.println("\tReceived zbTx");
+			*/
 
 			rxVCC = rx.getData()[0];
 			rxVCA = rx.getData()[1];
@@ -917,11 +934,15 @@ void RXdata() {
 			rxVCCout = (float)rxVCC/10.0;
 			rxVCAout = (float)rxVCA/10.0;
 
-			Serial.print("Receiver RSSI: "); Serial.println(rxRssi);
-			Serial.print("Receiver Voltage: "); Serial.println(rxVCCout);
-			Serial.print("Receiver Amperage: "); Serial.println(rxVCAout);
+			//Serial.print("Receiver RSSI: "); Serial.println(rxRssi);
+			//Serial.print("Receiver Voltage: "); Serial.println(rxVCCout);
+			//Serial.print("Receiver Amperage: "); Serial.println(rxVCAout);
 
 			if ((signalCode == 2) && (txSignature == rxSignature)) {
+				if (verifySticky > 0) {
+					toggleStickyTrigger(verifySticky);
+					verifySticky = 0;
+				}
 				signalCode = 3;
 				signalNextMilli = 0;
 				newSignature();
