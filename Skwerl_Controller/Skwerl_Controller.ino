@@ -246,14 +246,11 @@ AtCommandResponse atResponse = AtCommandResponse();
 boolean presstocontinue=false;
 boolean controllerstatus=false;	
 boolean transmitterstatus=false;	
-boolean networkstatus=false;	
 boolean receiverstatus=false;	
 boolean telemetrystatus=false;	
 boolean rxpacketvalid=false;
 boolean rxpacketstart=false;
 boolean txbegin=false;
-
-uint8_t xbRSSI;						// Used to store Pulse Width from RSSIpin
 
 int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
 
@@ -461,8 +458,7 @@ void bootTests() {
 
 	controllerstatus=false;								// Nunchuk connected?
 	transmitterstatus=false;							// Are we transmitting?
-	networkstatus=false;								// Are we networked?
-	receiverstatus=false;								// Are we receiving?
+	receiverstatus=false;								// Are we networked?
 	telemetrystatus=false;								// Are we receiving telemetry?
 
 	tft.setCursor(20,60);
@@ -776,16 +772,7 @@ void updateBattery(int battx, float vcc, String display) {
 void updateSignal() {
 
 	int signalLag = 600; // Meaningful signals shouldn't blink by too quick...
-
-	boolean displayDelay = true;
 	unsigned long thisMilli = millis();
-	
-	//Serial.print("signalCode: ");
-	//Serial.print(signalCode);
-	//Serial.print(" tx/rx signatures: ");
-	//Serial.print(txSignature);
-	//Serial.print("/");
-	//Serial.println(rxSignature);
 
 	if ((signalCode == 2) && (thisMilli >= signalLastSent+signalTimeout)) {
 		// Timeout, give up on this signal...
@@ -795,10 +782,6 @@ void updateSignal() {
 	}
 
 	if (thisMilli >= signalNextMilli) {
-		displayDelay = false;
-	}
-
-	if (!displayDelay) {
 		switch(signalCode) {
 			case -1:
 				tft.fillCircle(7, 9, 6, RED);
@@ -1141,8 +1124,8 @@ void toggleStickyTrigger(int trigger) {
 
 void newSignature() {
 	txSignature++;
-	if (txSignature >= 250) {
-		txSignature = 0;
+	if (txSignature > 250) {
+		txSignature = 1;
 	}
 }
 
