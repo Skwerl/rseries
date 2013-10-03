@@ -563,7 +563,7 @@ void autoPilot() {
 		//Serial.print("Timer Interval: "); Serial.println(timerInterval);
 		//Serial.print("Next Interval: "); Serial.println(nextInterval);
 		
-		int noiseSeed = random(0,2000);			// 1 in X chance of a sound playng each loop...
+		int noiseSeed = random(0,1000);			// 1 in X chance of a sound playng each loop...
 		if (noiseSeed == 1) {
 			randomSound(moodChill, moodHappy, moodScary, moodAngry);
 		}
