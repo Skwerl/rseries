@@ -569,9 +569,9 @@ void autoPilot() {
 			randomSound(moodChill, moodHappy, moodScary, moodAngry);
 		}
 
-		//Serial.print(timerInterval);
-		//Serial.print("/");
-		//Serial.println(nextInterval);
+		Serial.print(timerInterval);
+		Serial.print("/");
+		Serial.println(nextInterval);
 
 		if (timerInterval >= nextInterval) {
 
