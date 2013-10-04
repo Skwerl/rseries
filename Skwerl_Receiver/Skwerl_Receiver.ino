@@ -83,7 +83,6 @@ int stickCenterY = 128;
 
 // Autopilot
 boolean autoPilotEngaged = false;
-unsigned long autoPilotTimer;
 unsigned long baseInterval = 0;
 int nextInterval = 0;
 int autoPilotStep = 1;
@@ -133,7 +132,11 @@ int chan3Neutral = 88;
 ///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int loop_cnt = 0;
+int floodControl = 50;									// Only send feedback every X milliseconds
+int telemetryPoll = 2000;								// Delay between internal telemetry updates
+unsigned long lastPoll = 0;								// Timestamp of last internal poll
+unsigned long lastSignal = 0;							// Timestamp of last telemetry transmission
+unsigned long loopTimer = 0;
 
 byte txSignature = 0;
 byte txResponder = 0;
@@ -186,15 +189,13 @@ void setup() {
 
 void loop() {
 
-	autoPilotTimer = millis();
+	loopTimer = millis();
 
-	loop_cnt++;
-
-	if (loop_cnt > 40) {
+	if (loopTimer >= (lastPoll+telemetryPoll)) {
 		getRSSI();
 		getVCC();
 		getVCA();
-		loop_cnt = 0;
+		lastPoll = loopTimer;
 	}
 
 	xbee.readPacket();
@@ -211,13 +212,13 @@ void loop() {
 	if (xbee.getResponse().isAvailable()) {
 		//Serial.println("Got something...");
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-			Serial.println("Got a ZB RX Packet...");
+			//Serial.println("Got a ZB RX Packet...");
 			xbee.getResponse().getZBRxResponse(rx);
 			handleEvent();
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
-				Serial.println("Sender got ACK");  
+				//Serial.println("Sender got ACK");  
 			} else {
-				Serial.println("Sender did not get ACK");  
+				//Serial.println("Sender did not get ACK");  
 			}
 			// Set dataLed PWM to value of the first byte in the data
 			// analogWrite(dataLed, rx.getData(0));
@@ -438,28 +439,32 @@ void clearServos() {
 }
 
 void sendTelemetry() {
+	unsigned long timeNow = millis();
+	if (timeNow >= (lastSignal+floodControl)) {
 
-	//Serial.print("txVCC="); Serial.print(txVCC);
-	//Serial.print("\ttxVCA="); Serial.println(txVCA);
+		//Serial.print("txVCC="); Serial.print(txVCC);
+		//Serial.print("\ttxVCA="); Serial.println(txVCA);
+		
+		payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
+		payload[1] = txVCA;									// Amperage to one decimal place * 10
+		payload[2] = txRSSI;								// RSSI Value 
+		payload[3] = txSignature;							// Signature of last executed signal
+		payload[4] = txResponder;							// Data to send back to receiver
+		payload[5] = '5';									// Future Use
+		
+		xbee.send(zbTx);
 	
-	payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
-	payload[1] = txVCA;									// Amperage to one decimal place * 10
-	payload[2] = txRSSI;								// RSSI Value 
-	payload[3] = txSignature;							// Signature of last executed signal
-	payload[4] = txResponder;							// Data to send back to receiver
-	payload[5] = '5';									// Future Use
-	
-	xbee.send(zbTx); 
+		Serial.print("Tx:");
+		Serial.print("\t"); Serial.print(payload[0]);
+		Serial.print("\t"); Serial.print(payload[1]);
+		Serial.print("\t"); Serial.print(payload[2]);
+		Serial.print("\t"); Serial.print(payload[3]);
+		Serial.print("\t"); Serial.print(payload[4]);
+		Serial.print("\t"); Serial.println(payload[5]);
 
-	Serial.print("Tx:");
-	Serial.print("\t");   Serial.print(payload[0]);
-	Serial.print("\t");   Serial.print(payload[1]);
-	Serial.print("\t");   Serial.print(payload[2]);
-	Serial.print("\t");   Serial.print(payload[3]);
-	Serial.print("\t");   Serial.print(payload[4]);
-	Serial.print("\t"); Serial.println(payload[5]);
-	//Serial.println("\tSent zbTx");
+		lastSignal = timeNow;
 
+	}
 }
 
 void getVCC() {
@@ -554,10 +559,10 @@ void autoPilot() {
 
 		// Init lastInterval:
 		if (baseInterval == 0) {
-			baseInterval = autoPilotTimer;
+			baseInterval = loopTimer;
 			nextInterval = random(4000,5000);
 		}
-		unsigned long timerInterval = (autoPilotTimer-baseInterval);
+		unsigned long timerInterval = (loopTimer-baseInterval);
 	
 		//Serial.print("Base Interval: "); Serial.println(baseInterval);
 		//Serial.print("Timer Interval: "); Serial.println(timerInterval);
