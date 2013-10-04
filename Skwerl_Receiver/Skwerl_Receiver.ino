@@ -557,31 +557,34 @@ void autoPilot() {
 			}
 		}
 
-		// Init lastInterval:
+		// Init baseInterval & nextInterval
 		if (baseInterval == 0) {
 			baseInterval = loopTimer;
 			nextInterval = random(4000,5000);
 		}
 		unsigned long timerInterval = (loopTimer-baseInterval);
-	
-		//Serial.print("Base Interval: "); Serial.println(baseInterval);
-		//Serial.print("Timer Interval: "); Serial.println(timerInterval);
-		//Serial.print("Next Interval: "); Serial.println(nextInterval);
-		
+
 		int noiseSeed = random(0,1000);			// 1 in X chance of a sound playng each loop...
 		if (noiseSeed == 1) {
 			randomSound(moodChill, moodHappy, moodScary, moodAngry);
 		}
 
+		//Serial.print(timerInterval);
+		//Serial.print("/");
+		//Serial.println(nextInterval);
+
 		if (timerInterval >= nextInterval) {
+
+			//Serial.print("Step: ");
+			//Serial.println(autoPilotStep);
 
 			switch(autoPilotStep) {
 			
 				case 1:
 					//Serial.println("Step 1");
 
-					// Twitch dome left over 3 loops:
-					autoDomeCnt = 3;
+					// Twitch dome left over a few loops:
+					autoDomeCnt = 4;
 					autoDomePWM = 130;
 
 					autoPilotStep++;
@@ -592,7 +595,7 @@ void autoPilot() {
 					//Serial.println("Step 2");
 
 					// Twitch dome right over 3 loops:
-					autoDomeCnt = 3;
+					autoDomeCnt = 4;
 					autoDomePWM = 50;
 
 					autoPilotStep++;
