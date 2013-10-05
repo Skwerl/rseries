@@ -464,6 +464,8 @@ void bootTests() {
 	tft.setTextColor(RED);
 	tft.println("...");
 	
+	boolean controlleralive = false;
+	
 	while(controllerstatus == false) {
 		nunchuk.update();								// ALL data from nunchuk is continually sent to Receiver
 		joyx = nunchuk.analogX;							// ranges from approx 30 - 220
@@ -474,6 +476,14 @@ void bootTests() {
 		zbut = nunchuk.zButton;							// either 0 or 1
 		cbut = nunchuk.cButton;							// either 0 or 1
 		if (joyx > 0 && joyy > 0) {
+			if (!controlleralive) {
+				tft.fillRect(220,60,100,17,BLACK);
+				tft.setCursor(220,60);
+				tft.println("Locked");
+				controlleralive = true;
+			}
+		}
+		if (zbut==1 && cbut==1) {
 			controllerstatus = true;
 		}
 	}
