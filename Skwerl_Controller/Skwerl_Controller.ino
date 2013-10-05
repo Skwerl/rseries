@@ -155,9 +155,6 @@ int curPage = 1;
 int startAt;
 int triggered;
 
-// not yet sure how to get this to return the right number... 
-//int totalTriggers = ((sizeof(gridTriggers)/sizeof(char))-1);
-
 #define LCD_CS A3
 #define LCD_CD A2
 #define LCD_WR A1
@@ -254,8 +251,8 @@ boolean txbegin=false;
 
 int xbATResponse = 0xFF;			// To verify Coordinator XBee is setup and ready, set to 0xFF to prevent false positives
 
-boolean rxDEBUG = false;			// Set to monitor invalid TX packets via Serial Monitor baud 115200
-boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor baud 115200
+//boolean rxDEBUG = false;			// Set to monitor invalid TX packets via Serial Monitor baud 115200
+//boolean txDEBUG = false;			// Set to monitor sent TX packets via Serial Monitor baud 115200
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Wii Nunchuk Configuration *////////////////////////////////////////////////
