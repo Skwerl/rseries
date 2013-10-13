@@ -562,7 +562,7 @@ void bootTests() {
 		}
 		delay(1000);
 	}
-	Serial.println("Receiver Responded...");   // DEBUG CODE
+	//Serial.println("Receiver Responded...");   // DEBUG CODE
 	tft.fillRect(220, 100, 100, 17, BLACK);
 	tft.setCursor(220,100);
 	tft.setTextColor(GREEN);
@@ -731,7 +731,7 @@ void updateRSSI() {
 	if (bars<1) {
 		signalCode = 0;
 	} else {
-		if (signalCode < 2) {
+		if (signalCode >= 0 && signalCode < 2) {
 			signalCode = 1;
 		}
 	}
@@ -906,7 +906,7 @@ void RXdata() {
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
 
 			lastTransmission = millis();
-			if (signalCode < 2) {
+			if (signalCode >= 0 && signalCode < 2) {
 				signalCode = 1;
 			}
 
@@ -1049,7 +1049,16 @@ void getVCC() {
 	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
 	txVCC = (vcc)*10;
 	
-	//Serial.print("Battery Voltage: "); Serial.println(txVCC);
+	//Serial.print("VCCvalue: "); Serial.println(VCCvalue);
+	//Serial.print("Battery Voltage: "); Serial.println(vcc,1);
+	
+	/*
+	tft.fillRect(0, 0, 320, 240, BLACK);
+	tft.setCursor(0,0);
+	tft.setTextColor(WHITE);
+	tft.print(VCCvalue);
+	delay(2000);	
+	*/
 	
 }
 
