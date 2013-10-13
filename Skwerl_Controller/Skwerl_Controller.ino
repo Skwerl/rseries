@@ -433,6 +433,10 @@ void displaySplash() {									// Display a Retro SPLASH Title Screen!
 
 void bootTests() {
 
+	boolean skipTests = false;							// Debug
+
+	tft.fillRect(0, 0, 320, 240, BLACK);
+
 	tft.setCursor(0,0);
 	tft.setTextColor(WHITE);
 	tft.setTextSize(2);
@@ -453,10 +457,17 @@ void bootTests() {
 	
 	/* BOOT TEST SEQUENCE */
 
-	controllerstatus=false;								// Nunchuk connected?
 	transmitterstatus=false;							// Are we transmitting?
+	controllerstatus=false;								// Nunchuk connected?
 	receiverstatus=false;								// Are we networked?
 	telemetrystatus=false;								// Are we receiving telemetry?
+
+	if (skipTests) {
+		transmitterstatus = true;
+		controllerstatus = true;
+		receiverstatus = true;
+		telemetrystatus = true;
+	}
 
 	tft.setCursor(20,60);
 	tft.println("Wii Nunchuk:");
