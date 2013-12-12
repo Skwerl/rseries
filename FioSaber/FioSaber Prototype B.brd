@@ -925,6 +925,8 @@
 <rectangle x1="4.3815" y1="9.8171" x2="4.5847" y2="9.8425" layer="200"/>
 <rectangle x1="4.6101" y1="9.8171" x2="4.8387" y2="9.8425" layer="200"/>
 <rectangle x1="4.8641" y1="9.8171" x2="4.9149" y2="9.8425" layer="200"/>
+<text x="22.225" y="10.795" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">D16</text>
+<text x="22.225" y="13.335" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">D17</text>
 </plain>
 <libraries>
 <library name="SparkFun">
