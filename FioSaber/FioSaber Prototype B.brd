@@ -2568,7 +2568,7 @@ design rules under a new name.</description>
 <element name="C1" library="rcl" package="C025-025X050" value="0.1µF" x="7.62" y="35.56"/>
 <element name="R4" library="adafruit" package="0207/7" value="33Ω" x="13.97" y="27.94" rot="R270"/>
 <element name="R3" library="adafruit" package="0207/7" value="1kΩ" x="11.43" y="27.94" rot="R90"/>
-<element name="U$2" library="headers(.1in)" package="1X2" value="1X2" x="11.43" y="35.56"/>
+<element name="MOTOR" library="headers(.1in)" package="1X2" value="1X2" x="11.43" y="35.56"/>
 <element name="D1" library="adafruit" package="DO41-10" value="1N4004" x="6.35" y="17.145" rot="R90"/>
 <element name="S1" library="adafruit" package="EG1218" value="" x="12.7" y="17.145" rot="R90"/>
 <element name="IN" library="adafruit" package="JST-PH-2-SMT-RA" value="" x="8.255" y="43.18"/>
@@ -2827,7 +2827,7 @@ design rules under a new name.</description>
 </signal>
 <signal name="N$19">
 <contactref element="T1" pad="C"/>
-<contactref element="U$2" pad="1"/>
+<contactref element="MOTOR" pad="1"/>
 <contactref element="D2" pad="A"/>
 <contactref element="C1" pad="2"/>
 <wire x1="8.9408" y1="33.3248" x2="8.9408" y2="35.56" width="0.2032" layer="1"/>
@@ -2852,7 +2852,7 @@ design rules under a new name.</description>
 <via x="19.1008" y="22.1488" extent="1-16" drill="0.254"/>
 </signal>
 <signal name="N$20">
-<contactref element="U$2" pad="2"/>
+<contactref element="MOTOR" pad="2"/>
 <contactref element="R4" pad="2"/>
 <contactref element="D2" pad="C"/>
 <contactref element="C1" pad="1"/>

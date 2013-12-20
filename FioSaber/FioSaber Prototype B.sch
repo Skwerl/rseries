@@ -7981,7 +7981,7 @@ Source: AVX .. aphvc.pdf</description>
 <part name="C1" library="rcl" deviceset="C-US" device="025-025X050" value="0.1µF"/>
 <part name="R4" library="adafruit" deviceset="R-US_" device="0207/7" value="33Ω"/>
 <part name="R3" library="adafruit" deviceset="R-US_" device="0207/7" value="1kΩ"/>
-<part name="U$2" library="headers(.1in)" deviceset="1X2" device=""/>
+<part name="MOTOR" library="headers(.1in)" deviceset="1X2" device=""/>
 <part name="D1" library="adafruit" deviceset="1N4004" device=""/>
 <part name="S1" library="adafruit" deviceset="EG1218" device="S"/>
 <part name="IN" library="adafruit" deviceset="JST_2PIN" device="-SMT-RA"/>
@@ -8007,7 +8007,7 @@ Source: AVX .. aphvc.pdf</description>
 <instance part="C1" gate="G$1" x="129.54" y="96.52"/>
 <instance part="R4" gate="G$1" x="127" y="111.76"/>
 <instance part="R3" gate="G$1" x="129.54" y="58.42" rot="R270"/>
-<instance part="U$2" gate="G$1" x="144.78" y="93.98" rot="R270"/>
+<instance part="MOTOR" gate="G$1" x="144.78" y="93.98" rot="R270"/>
 <instance part="D1" gate="1" x="180.34" y="127" rot="R90"/>
 <instance part="S1" gate="1" x="190.5" y="119.38"/>
 <instance part="IN" gate="G$1" x="203.2" y="142.24"/>
@@ -8122,7 +8122,7 @@ Source: AVX .. aphvc.pdf</description>
 <wire x1="129.54" y1="78.74" x2="129.54" y2="86.36" width="0.1524" layer="91"/>
 <wire x1="129.54" y1="86.36" x2="121.92" y2="86.36" width="0.1524" layer="91"/>
 <wire x1="129.54" y1="86.36" x2="144.78" y2="86.36" width="0.1524" layer="91"/>
-<pinref part="U$2" gate="G$1" pin="1"/>
+<pinref part="MOTOR" gate="G$1" pin="1"/>
 <wire x1="144.78" y1="86.36" x2="144.78" y2="91.44" width="0.1524" layer="91"/>
 <junction x="129.54" y="86.36"/>
 <pinref part="D2" gate="1" pin="A"/>
@@ -8133,7 +8133,7 @@ Source: AVX .. aphvc.pdf</description>
 </net>
 <net name="N$20" class="0">
 <segment>
-<pinref part="U$2" gate="G$1" pin="2"/>
+<pinref part="MOTOR" gate="G$1" pin="2"/>
 <wire x1="121.92" y1="106.68" x2="129.54" y2="106.68" width="0.1524" layer="91"/>
 <wire x1="129.54" y1="106.68" x2="144.78" y2="106.68" width="0.1524" layer="91"/>
 <wire x1="144.78" y1="106.68" x2="144.78" y2="99.06" width="0.1524" layer="91"/>
