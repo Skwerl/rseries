@@ -24,6 +24,7 @@ int mla = 18;
 int mlb = 19;
 int mlc = 20;
 int mld = 21;
+int motorPin = 5;
 int currentMode = 0;
 unsigned long modeTimer = 0;
 unsigned long modeDelay = 200;
@@ -72,6 +73,7 @@ void setup() {
 	xbee.setSerial(Serial1);
 	xbee.begin(xbeebps);
 
+	pinMode(motorPin, OUTPUT);
 	pinMode(mla, HIGH);	
 	pinMode(mlb, HIGH);	
 	pinMode(mlc, HIGH);	
@@ -86,6 +88,11 @@ void setup() {
 void loop() {
 	
 	timeNow = millis();
+
+	//digitalWrite(motorPin, HIGH);
+	//delay(150);
+	//digitalWrite(motorPin, LOW);
+	//delay(150);
 
 	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
 	joyx = nunchuk.analogX;										// 0-255, center is 128
