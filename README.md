@@ -1,4 +1,4 @@
-rseries
+"Traditional" R-Series Code
 =======
 
 Arduino Controller &amp; Receiver for R2-D2
