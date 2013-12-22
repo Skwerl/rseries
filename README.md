@@ -1,4 +1,4 @@
-Skwerl's R-Series Control
+FioSaber R-Series Control
 =======
 
 Arduino Controller &amp; Receiver for R2-D2
