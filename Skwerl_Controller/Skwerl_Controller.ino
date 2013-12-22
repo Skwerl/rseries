@@ -25,9 +25,9 @@ int mlb = 19;
 int mlc = 20;
 int mld = 21;
 int currentMode = 0;
-unsigned long timeNow = 0;
 unsigned long modeTimer = 0;
 unsigned long modeDelay = 200;
+unsigned long timeNow = 1000;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
@@ -79,8 +79,7 @@ void setup() {
 			
 	nunchuk.init();										// Initialize Nunchuk using I2C
 
-	currentMode = 1;
-	digitalWrite(mla, HIGH);
+	switchMode();	
 
 }
 
@@ -115,31 +114,31 @@ void loop() {
 
 void switchMode() {
 	if (timeNow >= modeTimer+modeDelay) {
+		modeTimer = millis();
 		switch(currentMode) {
 			case 1:
 				currentMode = 2;
 				digitalWrite(mla, LOW);
 				digitalWrite(mlb, HIGH);
-				modeTimer = millis();
 				break;		
 			case 2:
 				currentMode = 3;
 				digitalWrite(mlb, LOW);
 				digitalWrite(mlc, HIGH);
-				modeTimer = millis();
 				break;		
 			case 3:
 				currentMode = 4;
 				digitalWrite(mlc, LOW);
 				digitalWrite(mld, HIGH);
-				modeTimer = millis();
 				break;		
 			case 4:
 				currentMode = 1;
 				digitalWrite(mld, LOW);
 				digitalWrite(mla, HIGH);
-				modeTimer = millis();
-				break;		
+				break;
+			default:
+				currentMode = 1;
+				digitalWrite(mla, HIGH);
 		}
 	}
 }
