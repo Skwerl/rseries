@@ -51,6 +51,8 @@ byte xbAPIidResponse = 0x00;
 ///////////////////////* Control & Sound Configuration *////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
+unsigned long loopTimer = 0;
+
 byte joyx, joyy, accx, accy, accz, zbut, cbut;
 int triggerEvent;
 
@@ -129,28 +131,6 @@ int chan2Neutral = min(chan2Min,chan2Max)+(abs(chan2Max-chan2Min)/2)+chan2correc
 int chan3Neutral = 88;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
-///////////////////////* Telemetry Configuration *//////////////////////////////////////////////////
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
-
-int floodControl = 50;									// Only send feedback every X milliseconds
-int telemetryPoll = 2000;								// Delay between internal telemetry updates
-unsigned long lastPoll = 0;								// Timestamp of last internal poll
-unsigned long lastSignal = 0;							// Timestamp of last telemetry transmission
-unsigned long loopTimer = 0;
-
-byte txSignature = 0;
-byte txResponder = 0;
-
-int txRSSI;
-
-unsigned int txVCC = 0;
-unsigned int txVCA = 0;
-
-int analogVCCinput = 5;									// RSeries Receiver default VCC input is A5
-float R1 = 47000.0;										// >> resistance of R1 in ohms << the more accurate these values are
-float R2 = 24000.0;										// >> resistance of R2 in ohms << the more accurate the measurement will be
-
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
@@ -188,15 +168,6 @@ void setup() {
 }
 
 void loop() {
-
-	loopTimer = millis();
-
-	if (loopTimer >= (lastPoll+telemetryPoll)) {
-		getRSSI();
-		getVCC();
-		getVCA();
-		lastPoll = loopTimer;
-	}
 
 	xbee.readPacket();
 	
@@ -241,8 +212,6 @@ void loop() {
 		//Serial.println(xbee.getResponse().getErrorCode());
 	}
 
-	sendTelemetry();
-
 	autoPilot();
 
 }
@@ -259,11 +228,7 @@ void handleEvent() {
 	int accy = rx.getData()[3];				// Nunchuk Y Acceleramator
 	int accz = rx.getData()[4];				// Nunchuk Z Acceleramator
 	triggerEvent = rx.getData()[7];
-	byte gotSig = rx.getData()[8];
-
-	if (gotSig > 0) {
-		txSignature = rx.getData()[8];	
-	}
+	//byte gotSig = rx.getData()[8];
 
 	/*
 	Serial.print(">> joyx =");Serial.print(joyx);
@@ -333,84 +298,9 @@ void handleEvent() {
 				// Toggle Holos:
 				toggleHPs();
 			} else if (stick == "DOWN") {
-				// Play Leia's message:
-				playSound(156);
+				// Switch Mode:
+				playSound(15);
 			}
-			break;
-
-		// Any touch screen triggers?
-
-		case 1:
-			toggleHPs();
-			break;
-		case 2:
-			//Serial.println("Toggling autopilot... ");
-			//Serial.println(autoPilotEngaged);
-			autoPilotEngaged = !autoPilotEngaged;
-			break;
-		case 3:
-			moodChill = !moodChill;
-			//Serial.print("chill? "); Serial.println(moodChill);
-			break;
-		case 4:
-			moodHappy = !moodHappy;
-			//Serial.print("happy? "); Serial.println(moodHappy);
-			break;
-		case 5:
-			moodScary = !moodScary;
-			//Serial.print("scary? "); Serial.println(moodScary);
-			break;
-		case 6:
-			moodAngry = !moodAngry;
-			//Serial.print("angry? "); Serial.println(moodAngry);
-			break;
-		case 7:
-			playSound(43);
-			break;
-		case 8:
-			playSound(150);
-			break;
-		case 9:
-			playSound(151);
-			break;
-		case 10:
-			playSound(152);
-			break;
-		case 11:
-			playSound(153);
-			break;
-		case 12:
-			playSound(154);
-			break;
-		case 13:
-			playSound(155);
-			break;
-		case 14:
-			playSound(156);
-			break;
-		case 15:
-			playSound(157);
-			break;
-		case 16:
-			playSound(158);
-			break;
-		case 17:
-			playSound(159);
-			break;
-		case 18:
-			playSound(160);
-			break;
-		case 19:
-			playSound(161);
-			break;
-		case 20:
-			playSound(162);
-			break;
-		case 21:
-			playSound(163);
-			break;
-		case 22:
-			playSound(164);
 			break;
 
 		default:
@@ -438,53 +328,6 @@ void clearServos() {
 
 }
 
-void sendTelemetry() {
-	unsigned long timeNow = millis();
-	if (timeNow >= (lastSignal+floodControl)) {
-
-		//Serial.print("txVCC="); Serial.print(txVCC);
-		//Serial.print("\ttxVCA="); Serial.println(txVCA);
-		
-		payload[0] = txVCC;									// Voltage to one decimal place * 10 (3.3v = 33, 12v = 120)
-		payload[1] = txVCA;									// Amperage to one decimal place * 10
-		payload[2] = txRSSI;								// RSSI Value 
-		payload[3] = txSignature;							// Signature of last executed signal
-		payload[4] = txResponder;							// Data to send back to receiver
-		payload[5] = '5';									// Future Use
-		
-		xbee.send(zbTx);
-	
-		Serial.print("Tx:");
-		Serial.print("\t"); Serial.print(payload[0]);
-		Serial.print("\t"); Serial.print(payload[1]);
-		Serial.print("\t"); Serial.print(payload[2]);
-		Serial.print("\t"); Serial.print(payload[3]);
-		Serial.print("\t"); Serial.print(payload[4]);
-		Serial.print("\t"); Serial.println(payload[5]);
-
-		lastSignal = timeNow;
-
-	}
-}
-
-void getVCC() {
-
-	int VCCvalue = analogRead(analogVCCinput);
-	float vout = 0.0;											// For voltage out measured analog input
-	float vcc = 0.0;											// Voltage calculated, since the divider allows for 15 volts
-
-	vout= (VCCvalue * 5.0)/1024.0;								// Voltage coming out of the voltage divider
-	vcc = vout / (R2/(R1+R2));									// Voltage based on vout to display battery status
-	txVCC = (vcc)*10;
-	
-	//Serial.print("Battery Voltage: "); Serial.println(txVCC);
-	
-}
-  
-void getVCA() {
-	txVCA = random(0,255);
-}  
-
 void getRSSI() {
 
 	atRequest.setCommand(dbCmd);  
@@ -493,7 +336,7 @@ void getRSSI() {
 		xbee.getResponse().getAtCommandResponse(atResponse);			
 		if (atResponse.isOk()) {
 			if (atResponse.getValueLength() > 0) {
-				txRSSI = atResponse.getValue()[0];
+				//txRSSI = atResponse.getValue()[0];
 				//Serial.print("RSSI Value: ");
 				//Serial.println(txRSSI);
 			} else {

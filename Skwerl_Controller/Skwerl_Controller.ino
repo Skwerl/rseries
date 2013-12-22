@@ -25,6 +25,9 @@ int mlb = 19;
 int mlc = 20;
 int mld = 21;
 int currentMode = 0;
+unsigned long timeNow = 0;
+unsigned long modeTimer = 0;
+unsigned long modeDelay = 200;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
@@ -82,6 +85,8 @@ void setup() {
 }
 
 void loop() {
+	
+	timeNow = millis();
 
 	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
 	joyx = nunchuk.analogX;										// 0-255, center is 128
@@ -96,34 +101,10 @@ void loop() {
 	else if (zbut == 0 && cbut == 1) {triggerEvent = 252; }
 	else if (zbut == 1 && cbut == 1) {triggerEvent = 254; }
 
-	if (cbut == 1) {
-
-		switch(currentMode) {
-			case 1:
-				currentMode = 2;
-				digitalWrite(mla, LOW);
-				digitalWrite(mlb, HIGH);
-				break;		
-			case 2:
-				currentMode = 3;
-				digitalWrite(mlb, LOW);
-				digitalWrite(mlc, HIGH);
-				break;		
-			case 3:
-				currentMode = 4;
-				digitalWrite(mlc, LOW);
-				digitalWrite(mld, HIGH);
-				break;		
-			case 4:
-				currentMode = 1;
-				digitalWrite(mld, LOW);
-				digitalWrite(mla, HIGH);
-				break;		
-		}
-		delay(200);
-	
+	if (joyy <= 123 && zbut == 1 && cbut == 1) {
+		switchMode();	
 	}
-	
+
 	TXdata();
 
 }
@@ -131,6 +112,37 @@ void loop() {
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* RSeries Functions *////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+void switchMode() {
+	if (timeNow >= modeTimer+modeDelay) {
+		switch(currentMode) {
+			case 1:
+				currentMode = 2;
+				digitalWrite(mla, LOW);
+				digitalWrite(mlb, HIGH);
+				modeTimer = millis();
+				break;		
+			case 2:
+				currentMode = 3;
+				digitalWrite(mlb, LOW);
+				digitalWrite(mlc, HIGH);
+				modeTimer = millis();
+				break;		
+			case 3:
+				currentMode = 4;
+				digitalWrite(mlc, LOW);
+				digitalWrite(mld, HIGH);
+				modeTimer = millis();
+				break;		
+			case 4:
+				currentMode = 1;
+				digitalWrite(mld, LOW);
+				digitalWrite(mla, HIGH);
+				modeTimer = millis();
+				break;		
+		}
+	}
+}
 
 void TXdata() {
 
