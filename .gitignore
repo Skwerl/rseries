@@ -1,4 +1,5 @@
 .DS_Store
 FioSaber/*.pro
+FioSaber/FioSaber Gerbers/*.zip
 *.b#*
 *.s#*
