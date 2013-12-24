@@ -153,8 +153,8 @@
 <text x="3.175" y="43.815" size="0.8128" layer="21" font="vector" ratio="15">3V3</text>
 <text x="16.51" y="17.78" size="1.016" layer="21" font="vector" ratio="15" rot="SR0" align="bottom-center">MODE</text>
 <text x="22.225" y="41.275" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">AREF</text>
-<text x="22.225" y="36.195" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">RX</text>
-<text x="22.225" y="33.655" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">TX</text>
+<text x="22.225" y="36.195" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">RXI</text>
+<text x="22.225" y="33.655" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">TXO</text>
 <text x="22.225" y="31.115" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">RST</text>
 <text x="22.225" y="28.575" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">A5</text>
 <text x="22.225" y="26.035" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">A4</text>
@@ -907,7 +907,7 @@
 <text x="22.225" y="10.795" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">D16</text>
 <text x="22.225" y="13.335" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">D17</text>
 <text x="22.225" y="43.815" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">GND</text>
-<text x="22.225" y="38.735" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">3V</text>
+<text x="22.225" y="38.735" size="0.8128" layer="21" font="vector" ratio="15" align="bottom-right">3V3</text>
 </plain>
 <libraries>
 <library name="SparkFun">
