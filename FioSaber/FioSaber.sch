@@ -7984,8 +7984,8 @@ Source: AVX .. aphvc.pdf</description>
 <part name="MOTOR" library="headers(.1in)" deviceset="1X2" device=""/>
 <part name="D1" library="adafruit" deviceset="1N4004" device=""/>
 <part name="S1" library="adafruit" deviceset="EG1218" device="S"/>
-<part name="IN" library="adafruit" deviceset="JST_2PIN" device="-SMT-RA"/>
-<part name="OUT" library="adafruit" deviceset="JST_2PIN" device="-SMT-RA"/>
+<part name="IN" library="adafruit" deviceset="JST_2PIN" device="-THM-RA"/>
+<part name="OUT" library="adafruit" deviceset="JST_2PIN" device="-THM-RA"/>
 <part name="D2" library="adafruit" deviceset="1N4004" device=""/>
 <part name="R2" library="adafruit" deviceset="R-US_" device="0207/7" value="100Ω"/>
 <part name="TX" library="adafruit" deviceset="LED" device="3MM"/>
