@@ -15,6 +15,10 @@
 #include <XBee.h>               
 #include <Wire.h>               // Used to read the I2C data from Nunchuck
 #include <ArduinoNunchuk.h>     // Gabriel Bianconi @ http://www.gabrielbianconi.com/projects/arduinonunchuk/
+#include <WiiClassic.h>			// Tim Hirzel @ http://playground.arduino.cc/Main/WiiClassicController
+
+// If your Wire.h doesn't understand "send" or "receive" (no member error),
+// Update Wire.h, or open WiiClassic.h and try replacing with "write" and "read" respectively.
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Mode Configuration *///////////////////////////////////////////////////////
