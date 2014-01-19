@@ -24,10 +24,10 @@
 ///////////////////////* Mode Configuration *///////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int mla = 18;
-int mlb = 19;
-int mlc = 20;
-int mld = 21;
+int mla = 19;
+int mlb = 20;
+int mlc = 21;
+int txp = 18;
 int motorPin = 5;
 int currentMode = 0;
 unsigned long modeTimer = 0;
@@ -81,7 +81,7 @@ void setup() {
 	pinMode(mla, HIGH);	
 	pinMode(mlb, HIGH);	
 	pinMode(mlc, HIGH);	
-	pinMode(mld, HIGH);	
+	pinMode(txp, HIGH);	
 			
 	nunchuk.init();										// Initialize Nunchuk using I2C
 
@@ -138,15 +138,10 @@ void switchMode() {
 				digitalWrite(mlc, HIGH);
 				break;		
 			case 3:
-				currentMode = 4;
-				digitalWrite(mlc, LOW);
-				digitalWrite(mld, HIGH);
-				break;		
-			case 4:
 				currentMode = 1;
-				digitalWrite(mld, LOW);
+				digitalWrite(mlc, LOW);
 				digitalWrite(mla, HIGH);
-				break;
+				break;		
 			default:
 				currentMode = 1;
 				digitalWrite(mla, HIGH);
@@ -165,6 +160,12 @@ void TXdata() {
 	payload[6]=cbut;  			// C Button Status
 	payload[7]=triggerEvent;	// 0 to 254
 	payload[8]=currentMode;		// What control mode is selected?
+
+	if (triggerEvent > 0) {
+		digitalWrite(txp, HIGH);
+	} else {
+		digitalWrite(txp, LOW);	
+	}
 
 	xbee.send(zbTx);
 
