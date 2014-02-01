@@ -24,15 +24,26 @@
 ///////////////////////* Mode Configuration *///////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int mla = 19;
-int mlb = 20;
-int mlc = 21;
-int txp = 18;
+int txLED = 19;
+int rgbLED[] = {21,20,22};
 int motorPin = 5;
+
 int currentMode = 0;
 unsigned long modeTimer = 0;
 unsigned long modeDelay = 200;
 unsigned long timeNow = 1000;
+
+const boolean ON = LOW;
+const boolean OFF = HIGH;
+const boolean RED[] = {ON, OFF, OFF}; 
+const boolean GREEN[] = {OFF, ON, OFF}; 
+const boolean BLUE[] = {OFF, OFF, ON}; 
+const boolean YELLOW[] = {ON, ON, OFF}; 
+const boolean CYAN[] = {OFF, ON, ON}; 
+const boolean MAGENTA[] = {ON, OFF, ON}; 
+const boolean WHITE[] = {ON, ON, ON}; 
+const boolean BLACK[] = {OFF, OFF, OFF};
+const boolean* COLORS[] = {RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA, WHITE, BLACK};
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
@@ -77,14 +88,15 @@ void setup() {
 	xbee.setSerial(Serial1);
 	xbee.begin(xbeebps);
 
+	pinMode(txLED, HIGH);	
+	for(int i=0; i<3; i++) { 
+		pinMode(rgbLED[i], OUTPUT); 
+	} 
 	pinMode(motorPin, OUTPUT);
-	pinMode(mla, HIGH);	
-	pinMode(mlb, HIGH);	
-	pinMode(mlc, HIGH);	
-	pinMode(txp, HIGH);	
 			
 	nunchuk.init();										// Initialize Nunchuk using I2C
 
+	setColor(rgbLED, BLACK);
 	switchMode();	
 
 }
@@ -129,22 +141,19 @@ void switchMode() {
 		switch(currentMode) {
 			case 1:
 				currentMode = 2;
-				digitalWrite(mla, LOW);
-				digitalWrite(mlb, HIGH);
+				setColor(rgbLED, GREEN);
 				break;		
 			case 2:
 				currentMode = 3;
-				digitalWrite(mlb, LOW);
-				digitalWrite(mlc, HIGH);
+				setColor(rgbLED, YELLOW);
 				break;		
 			case 3:
 				currentMode = 1;
-				digitalWrite(mlc, LOW);
-				digitalWrite(mla, HIGH);
+				setColor(rgbLED, RED);
 				break;		
 			default:
 				currentMode = 1;
-				digitalWrite(mla, HIGH);
+				setColor(rgbLED, RED);
 		}
 	}
 }
@@ -162,9 +171,9 @@ void TXdata() {
 	payload[8]=currentMode;		// What control mode is selected?
 
 	if (triggerEvent > 0) {
-		digitalWrite(txp, HIGH);
+		digitalWrite(txLED, HIGH);
 	} else {
-		digitalWrite(txp, LOW);	
+		digitalWrite(txLED, LOW);	
 	}
 
 	xbee.send(zbTx);
@@ -173,4 +182,10 @@ void TXdata() {
 	zbut=0;
 	cbut=0;
 
+}
+
+void setColor(int* led, const boolean* color) { 
+	for(int i=0; i<3; i++) { 
+		digitalWrite(led[i], color[i]); 
+	} 
 }
