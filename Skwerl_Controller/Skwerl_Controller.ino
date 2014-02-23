@@ -35,15 +35,26 @@ unsigned long timeNow = 1000;
 
 const boolean ON = LOW;
 const boolean OFF = HIGH;
-const boolean RED[] = {ON, OFF, OFF}; 
-const boolean GREEN[] = {OFF, ON, OFF}; 
-const boolean BLUE[] = {OFF, OFF, ON}; 
-const boolean YELLOW[] = {ON, ON, OFF}; 
-const boolean CYAN[] = {OFF, ON, ON}; 
-const boolean MAGENTA[] = {ON, OFF, ON}; 
-const boolean WHITE[] = {ON, ON, ON}; 
-const boolean BLACK[] = {OFF, OFF, OFF};
-const boolean* COLORS[] = {RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA, WHITE, BLACK};
+const boolean RED[]     = { ON, OFF, OFF };
+const boolean GREEN[]   = { OFF, ON, OFF };
+const boolean BLUE[]    = { OFF, OFF, ON };
+const boolean YELLOW[]  = { ON, ON, OFF };
+const boolean CYAN[]    = { OFF, ON, ON };
+const boolean MAGENTA[] = { ON, OFF, ON };
+const boolean WHITE[]   = { ON, ON, ON };
+const boolean BLACK[]   = { OFF, OFF, OFF };
+const boolean* COLORS[] = { RED, GREEN, BLUE, YELLOW, CYAN, MAGENTA, WHITE, BLACK };
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Button Configuration *///////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int buttonPin = 18;
+int buttonLongPressTime = 25;
+
+enum { EV_NONE=0, EV_SHORTPRESS, EV_LONGPRESS };
+boolean buttonPressed;
+int buttonPressCounter;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* XBee Configuration *///////////////////////////////////////////////////////
@@ -88,6 +99,11 @@ void setup() {
 	xbee.setSerial(Serial1);
 	xbee.begin(xbeebps);
 
+	pinMode(buttonPin, INPUT);
+	digitalWrite(buttonPin, HIGH);
+	buttonPressed = false;
+	buttonPressCounter = 0;
+	
 	pinMode(txLED, HIGH);	
 	for(int i=0; i<3; i++) { 
 		pinMode(rgbLED[i], OUTPUT); 
@@ -104,6 +120,14 @@ void setup() {
 void loop() {
 	
 	timeNow = millis();
+
+	boolean event = handle_button();
+	
+	switch (event) {
+		case EV_SHORTPRESS:
+			switchMode();	
+			break;
+	}
 
 	//digitalWrite(motorPin, HIGH);
 	//delay(150);
@@ -134,6 +158,30 @@ void loop() {
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* RSeries Functions *////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int handle_button() {
+
+	int event = EV_NONE;
+	int buttonPressing = !digitalRead(buttonPin);
+
+	if (!buttonPressing && buttonPressed) {
+		if (buttonPressCounter < buttonLongPressTime) {
+			event = EV_SHORTPRESS;
+		}
+	}
+	if (buttonPressing) {
+		buttonPressCounter++;
+		if (buttonPressCounter >= buttonLongPressTime) {
+			event = EV_LONGPRESS;
+		}		
+	} else {
+		buttonPressCounter = 0;
+	}
+
+	buttonPressed = buttonPressing;
+	return event;
+
+}
 
 void switchMode() {
 	if (timeNow >= modeTimer+modeDelay) {
