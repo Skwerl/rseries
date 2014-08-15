@@ -117,8 +117,8 @@ int chan1Min = 30;					// Channel 1 Min - Left/Right
 int chan1Max = 220;					// Channel 1 Max - Left/Right
 int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed 
 int chan2Max = 220;					// Channel 2 Max - Forward & Reverse Speed
-int chan3Min = 150;					// Channel 3 Min - Dome Rotation LEFT 
-int chan3Max = 30;					// Channel 3 Max - Dome Rotation RIGHT
+int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
+int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
 
 // Weirdness Corrections
 int chan1correct = 0;
