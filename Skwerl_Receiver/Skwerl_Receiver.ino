@@ -336,7 +336,6 @@ void handleEvent() {
 			}
 
 			if (stick != "UP" && stick != "DOWN" && stick != "LEFT" && stick != "RIGHT") {
-				Serial.println("Clearing servos...");
 				clearServos();
 			}
 
