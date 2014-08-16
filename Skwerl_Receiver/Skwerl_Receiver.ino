@@ -100,6 +100,8 @@ Servo chan1servo;
 Servo chan2servo;
 Servo chan3servo;
 Servo chan4servo;
+Servo chan5servo;
+Servo chan6servo;
 
 int servo1Pin = 2;					// Channel 1
 int servo2Pin = 3;					// Channel 2
@@ -119,16 +121,24 @@ int chan2Min = 30;					// Channel 2 Min - Forward & Reverse Speed
 int chan2Max = 220;					// Channel 2 Max - Forward & Reverse Speed
 int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
 int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
+int chan4Min = 120;					// Channel 4 Min - Holo Movement Up/Down
+int chan4Max = 50;					// Channel 4 Max - Holo Movement Up/Down
+int chan5Min = 120;					// Channel 5 Min - Holo Movement Left/Right
+int chan5Max = 50;					// Channel 5 Max - Holo Movement Left/Right
 
 // Weirdness Corrections
 int chan1correct = 0;
 int chan2correct = 0;
-int chan3correct = -2;
+int chan3correct = 0;
+int chan4correct = 0;
+int chan5correct = 0;
 
 // Neutral Adjustments 
 int chan1Neutral = min(chan1Min,chan1Max)+(abs(chan1Max-chan1Min)/2)+chan1correct;
 int chan2Neutral = min(chan2Min,chan2Max)+(abs(chan2Max-chan2Min)/2)+chan2correct;
-int chan3Neutral = 88;
+int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correct;
+int chan4Neutral = min(chan4Min,chan4Max)+(abs(chan4Max-chan4Min)/2)+chan4correct;
+int chan5Neutral = min(chan5Min,chan5Max)+(abs(chan5Max-chan5Min)/2)+chan5correct;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
@@ -147,10 +157,12 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	chan1servo.attach(servo1Pin);  // Foot motors left/right
-	chan2servo.attach(servo2Pin);  // Foot motors forward/back
-	chan3servo.attach(servo3Pin);  // Dome motor 
-	chan4servo.attach(servo4Pin);  // HPs switch 
+	chan1servo.attach(servo1Pin);  // Foot Motors Left/Right
+	chan2servo.attach(servo2Pin);  // Foot Motors Forward/Back
+	chan3servo.attach(servo3Pin);  // Dome Motor 
+	chan4servo.attach(servo4Pin);  // Holo Up/Down 
+	chan5servo.attach(servo5Pin);  // Holo Left/Right
+	chan6servo.attach(servo6Pin);  // HPs Switch 
 
 	stickCenterX = min(joyxmin,joyxmax)+(abs(joyxmax-joyxmin)/2);
 	stickCenterY = min(joyymin,joyymax)+(abs(joyymax-joyymin)/2);
@@ -238,7 +250,7 @@ void handleEvent() {
 	Serial.print("\taccz =");Serial.print(accz);
 	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
 	*/
-
+	
 	char* stick = "CENTER";
 	if (joyx >= 133) {
 		stick = "RIGHT";
@@ -253,7 +265,7 @@ void handleEvent() {
 	switch (triggerEvent) {
 
 		// Nunchuk triggers first...
-		
+
 		case 252:
 			Serial.println("C Button Pressed");
 			// Play sound...
@@ -303,6 +315,33 @@ void handleEvent() {
 			}
 			break;
 
+		case 0:
+
+			// Holo movement...
+
+			if (stick == "UP") {
+				stickMapped = map(joyy, stickCenterY, joyymin, chan4Neutral, chan4Min);
+				chan4servo.write(stickMapped);
+			} else if (stick == "DOWN") {
+				stickMapped = map(joyy, stickCenterY, joyymax, chan4Neutral, chan4Max);
+				chan4servo.write(stickMapped);
+			}
+
+			if (stick == "LEFT") {
+				stickMapped = map(joyx, stickCenterX, joyxmin, chan5Neutral, chan5Min);
+				chan5servo.write(stickMapped);
+			} else if (stick == "RIGHT") {
+				stickMapped = map(joyx, stickCenterX, joyxmax, chan5Neutral, chan5Max);
+				chan5servo.write(stickMapped);
+			}
+
+			if (stick != "UP" && stick != "DOWN" && stick != "LEFT" && stick != "RIGHT") {
+				Serial.println("Clearing servos...");
+				clearServos();
+			}
+
+			break;
+
 		default:
 			clearServos();
 
@@ -325,6 +364,8 @@ void clearServos() {
 
 	domeSpinning = false;
 	chan3servo.write(chan3Neutral);
+	chan4servo.write(chan4Neutral);
+	chan5servo.write(chan5Neutral);
 
 }
 
@@ -521,10 +562,10 @@ void randomSound(boolean chill, boolean happy, boolean scary, boolean angry) {
 void toggleHPs() {
 	if (holosOn) {
 		Serial.println("HPs OFF");
-		chan4servo.write(80);
+		chan6servo.write(80);
 	} else {
 		Serial.println("HPs ON");
-		chan4servo.write(100);
+		chan6servo.write(100);
 	}
 	holosOn = !holosOn;
 }
@@ -541,7 +582,7 @@ void testServo() {
 		if (i > 255) { reverse = true; }
 		if (i < 0) { reverse = false; }
 
-		chan3servo.write(i);
+		chan4servo.write(i);
 
 		Serial.print("PWM Signal: ");
 		Serial.println(i);
