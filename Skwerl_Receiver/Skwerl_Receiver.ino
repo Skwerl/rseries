@@ -67,10 +67,10 @@ boolean moodHappy = false;
 boolean moodScary = false;
 boolean moodAngry = false;
 
-int joyxmin = 0;
-int joyxmax = 255;
-int joyymin = 0;
-int joyymax = 255;
+int joyxmin = 32;
+int joyxmax = 225;
+int joyymin = 34;
+int joyymax = 222;
 int accxmin = 70;
 int accxmax = 182;
 int accymin = 65;
@@ -80,10 +80,25 @@ int acczmax = 173;
 
 int stickMapped = 0;
 int stickMirror = 0;
-int stickCenterX = 128;
+int stickCenterX = 124;
 int stickCenterY = 128;
 
 int controlMode = 0;
+
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+///////////////////////* Drive Configuration *//////////////////////////////////////////////////////
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
+
+int analogTmp = 0;
+int throttle, direction = 0;
+float leftMotorScale = 0;
+float rightMotorScale = 0;
+float maxMotorScale = 0;
+int leftMotor, leftMotorScaled = 0;
+int rightMotor, rightMotorScaled = 0;
+int differentialMapX, differentialMapY = 0;
+
+int neutralMargin  = 14;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* PWM & Servo Configuration *////////////////////////////////////////////////
@@ -110,8 +125,8 @@ int servo10Pin = 12;				// Channel 10
 // Ranges
 int chan1Min = 50;					// Channel 1 Min - Forward & Reverse Speed 
 int chan1Max = 150;					// Channel 1 Max - Forward & Reverse Speed
-int chan2Min = 50;					// Channel 2 Min - Left/Right 
-int chan2Max = 150;					// Channel 2 Max - Left/Right
+int chan2Min = chan1Min;			// Channel 2 Min - Left/Right 
+int chan2Max = chan1Max;			// Channel 2 Max - Left/Right
 int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
 int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
 int chan4Min = 120;					// Channel 4 Min - Holo Movement Up/Down
@@ -241,6 +256,7 @@ void handleEvent() {
 	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
 	*/
 	
+	
 	char* stick = "CENTER";
 	if (joyx >= 133) {
 		stick = "RIGHT";
@@ -337,44 +353,27 @@ void handleEvent() {
 
 				// Drive; Motor Control
 
-				if (stick == "UP") {
-	
-					stickMapped = map(joyy, stickCenterY, joyymax, chan1Neutral, chan1Max);
-					stickMirror = map(joyy, stickCenterY, joyymax, chan2Neutral, chan2Max);
-	
-					chan1servo.write(stickMapped);
-					chan2servo.write(stickMirror);
-	
-				} else if (stick == "DOWN") {
-	
-					stickMapped = map(joyy, stickCenterY, joyymin, chan1Neutral, chan1Min);
-					stickMirror = map(joyy, stickCenterY, joyymin, chan2Neutral, chan2Min);
-	
-					chan1servo.write(stickMapped);
-					chan2servo.write(stickMirror);
-	
-				} else if (stick == "LEFT") {
-	
-					stickMapped = map(joyx, stickCenterX, joyxmin, chan1Neutral, chan1Max);
-					stickMirror = map(joyx, stickCenterX, joyxmin, chan2Neutral, chan2Min);
-	
-					chan1servo.write(stickMapped);
-					chan2servo.write(stickMirror);
-	
-				} else if (stick == "RIGHT") {
-	
-					stickMapped = map(joyx, stickCenterX, joyxmax, chan1Neutral, chan1Min);
-					stickMirror = map(joyx, stickCenterX, joyxmax, chan2Neutral, chan2Max);
-	
-					chan1servo.write(stickMapped);
-					chan2servo.write(stickMirror);
-	
-				} else {
-	
-					chan1servo.write(chan1Neutral);
-					chan2servo.write(chan2Neutral);
-	
-				}
+				differentialMapX = map(joyx,joyxmin,joyxmax,0,1023);
+				differentialMapY = map(joyy,joyymin,joyymax,0,1023);
+
+				direction = -(512-differentialMapX)/2;
+				throttle = +(512-differentialMapY)/2;
+
+				leftMotor = throttle+direction;
+				rightMotor = throttle-direction;
+				leftMotorScale =  abs(leftMotor/255.0);
+				rightMotorScale =  abs(rightMotor/255.0);
+				maxMotorScale = max(leftMotorScale,rightMotorScale);
+				maxMotorScale = max(1,maxMotorScale);				
+				leftMotorScaled = constrain(leftMotor/maxMotorScale,-255,255);
+				rightMotorScaled = constrain(rightMotor/maxMotorScale,-255,255);
+				
+				// Map motor values back to channel min/max...
+				leftMotor = map(leftMotorScaled,-255,255,chan1Min,chan1Max);
+				rightMotor = map(rightMotorScaled,-255,255,chan1Min,chan1Max);
+
+				chan1servo.write(leftMotor);
+				chan2servo.write(rightMotor);
 
 			}
 

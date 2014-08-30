@@ -209,7 +209,7 @@ void switchMode() {
 void TXdata() {
 
 	payload[0]=joyx;			// JoyX ranges from approx 30 - 220
-	payload[1]=joyy;			// JoyY ranges from approx 29 - 230
+	payload[1]=joyy;			// JoyY ranges from approx 30 - 220
 	payload[2]=accx;			// AccX ranges from approx 70 - 182
 	payload[3]=accy;			// AccY ranges from approx 65 - 173
 	payload[4]=accz;			// AccZ ranges from approx 65 - 173
