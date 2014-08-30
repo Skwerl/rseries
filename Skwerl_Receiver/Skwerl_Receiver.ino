@@ -79,7 +79,6 @@ int acczmin = 65;
 int acczmax = 173;
 
 int stickMapped = 0;
-int stickMirror = 0;
 int stickCenterX = 124;
 int stickCenterY = 128;
 
