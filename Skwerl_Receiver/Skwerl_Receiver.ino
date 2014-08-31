@@ -97,7 +97,10 @@ int leftMotor, leftMotorScaled = 0;
 int rightMotor, rightMotorScaled = 0;
 int differentialMapX, differentialMapY = 0;
 
-int neutralMargin  = 14;
+boolean safety = true;
+int safetyCount = 0;
+int safetyThreshold = 14*100;
+boolean servoClear = false;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* PWM & Servo Configuration *////////////////////////////////////////////////
@@ -187,6 +190,8 @@ void setup() {
 
 void loop() {
 
+	safetyCount++;
+	servoClear = true;
 	xbee.readPacket();
 	
 	if (Serial2.available()) {
@@ -203,6 +208,7 @@ void loop() {
 		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
 			//Serial.println("Got a ZB RX Packet...");
 			xbee.getResponse().getZBRxResponse(rx);
+			servoClear = false;
 			handleEvent();
 			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
 				//Serial.println("Sender got ACK");  
@@ -223,11 +229,18 @@ void loop() {
 				Serial.println("Hmm...");  
 			}
 	//	} else {
-	//		Serial.println("WTF?");  
+	//		Serial.println("WTF?");
 		}
 	} else if (xbee.getResponse().isError()) {
 		//Serial.print("Error reading packet.  Error code: ");  
 		//Serial.println(xbee.getResponse().getErrorCode());
+	}
+
+	if (safetyCount >= safetyThreshold) {
+		safety = true;
+		if (servoClear) {
+			clearServos();
+		}
 	}
 
 }
@@ -246,6 +259,11 @@ void handleEvent() {
 	triggerEvent = rx.getData()[7];
 	controlMode = rx.getData()[8];
 
+	if (controlMode > 0) {
+		safety = false;
+		safetyCount = 0;
+	}
+
 	/*
 	Serial.print(">> joyx =");Serial.print(joyx);
 	Serial.print("\tjoyy =");Serial.print(joyy);
@@ -254,7 +272,6 @@ void handleEvent() {
 	Serial.print("\taccz =");Serial.print(accz);
 	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
 	*/
-	
 	
 	char* stick = "CENTER";
 	if (joyx >= 133) {
@@ -370,9 +387,14 @@ void handleEvent() {
 				// Map motor values back to channel min/max...
 				leftMotor = map(leftMotorScaled,-255,255,chan1Min,chan1Max);
 				rightMotor = map(rightMotorScaled,-255,255,chan1Min,chan1Max);
-
-				chan1servo.write(leftMotor);
-				chan2servo.write(rightMotor);
+				
+				if (safety == false) {
+					chan1servo.write(leftMotor);
+					chan2servo.write(rightMotor);
+				} else {
+					chan1servo.write(chan1Neutral);
+					chan2servo.write(chan2Neutral);				
+				}
 
 			}
 
