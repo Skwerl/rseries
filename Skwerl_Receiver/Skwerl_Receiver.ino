@@ -88,7 +88,6 @@ int controlMode = 0;
 ///////////////////////* Drive Configuration *//////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-int analogTmp = 0;
 int throttle, direction = 0;
 float leftMotorScale = 0;
 float rightMotorScale = 0;
@@ -125,10 +124,10 @@ int servo9Pin = 11;					// Channel 9
 int servo10Pin = 12;				// Channel 10
 
 // Ranges
-int chan1Min = 50;					// Channel 1 Min - Forward & Reverse Speed 
-int chan1Max = 150;					// Channel 1 Max - Forward & Reverse Speed
-int chan2Min = chan1Min;			// Channel 2 Min - Left/Right 
-int chan2Max = chan1Max;			// Channel 2 Max - Left/Right
+int chan1Min = 50;					// Channel 1 Min - Left Motor
+int chan1Max = 150;					// Channel 1 Max - Left Motor
+int chan2Min = chan1Min;			// Channel 2 Min - Right Motor
+int chan2Max = chan1Max;			// Channel 2 Max - Right Motor
 int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
 int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
 int chan4Min = 120;					// Channel 4 Min - Holo Movement Up/Down
@@ -167,8 +166,8 @@ void setup() {
 	Serial.println(" ");  
 	Serial.println("Listening...");  
 
-	chan1servo.attach(servo1Pin);  // Foot Motors Forward/Back
-	chan2servo.attach(servo2Pin);  // Foot Motors Left/Right
+	chan1servo.attach(servo1Pin);  // Left Foot Motor
+	chan2servo.attach(servo2Pin);  // Right Foot Motor
 	chan3servo.attach(servo3Pin);  // Dome Motor 
 	chan4servo.attach(servo4Pin);  // Holo Up/Down 
 	chan5servo.attach(servo5Pin);  // Holo Left/Right
