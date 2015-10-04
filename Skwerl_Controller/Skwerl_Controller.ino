@@ -104,7 +104,7 @@ void setup() {
 	buttonPressed = false;
 	buttonPressCounter = 0;
 	
-	pinMode(txLED, HIGH);	
+	pinMode(txLED, OUTPUT);	
 	for(int i=0; i<3; i++) { 
 		pinMode(rgbLED[i], OUTPUT); 
 	} 
@@ -128,11 +128,6 @@ void loop() {
 			switchMode();	
 			break;
 	}
-
-	//digitalWrite(motorPin, HIGH);
-	//delay(150);
-	//digitalWrite(motorPin, LOW);
-	//delay(150);
 
 	nunchuk.update();											// ALL data from nunchuk is continually sent to Receiver
 	joyx = nunchuk.analogX;										// 0-255, center is 128
@@ -185,6 +180,7 @@ int handle_button() {
 
 void switchMode() {
 	if (timeNow >= modeTimer+modeDelay) {
+		vibeMotor();
 		modeTimer = millis();
 		switch(currentMode) {
 			case 1:
@@ -206,6 +202,12 @@ void switchMode() {
 	}
 }
 
+void vibeMotor() {
+	digitalWrite(motorPin, HIGH);
+	delay(110);
+	digitalWrite(motorPin, LOW);
+}
+
 void TXdata() {
 
 	payload[0]=joyx;			// JoyX ranges from approx 30 - 220
@@ -221,8 +223,10 @@ void TXdata() {
 	if (triggerEvent > 0) {
 		digitalWrite(txLED, HIGH);
 	} else {
-		digitalWrite(txLED, LOW);	
+		digitalWrite(txLED, LOW);
 	}
+
+	Serial1.write(triggerEvent);
 
 	xbee.send(zbTx);
 
