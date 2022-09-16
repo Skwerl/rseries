@@ -226,8 +226,6 @@ void loop() {
 			} else {
 				Serial.println("Hmm...");  
 			}
-	//	} else {
-	//		Serial.println("WTF?");
 		}
 	} else if (xbee.getResponse().isError()) {
 		//Serial.print("Error reading packet.  Error code: ");  

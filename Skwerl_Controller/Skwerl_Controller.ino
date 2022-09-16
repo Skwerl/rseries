@@ -95,8 +95,8 @@ byte triggerEvent;
 
 void setup() {
 
-	Serial1.begin(xbeebps);
-	xbee.setSerial(Serial1);
+	Serial.begin(xbeebps);
+	xbee.setSerial(Serial);
 	xbee.begin(xbeebps);
 
 	pinMode(buttonPin, INPUT);
@@ -226,7 +226,7 @@ void TXdata() {
 		digitalWrite(txLED, LOW);
 	}
 
-	Serial1.write(triggerEvent);
+	Serial.write(triggerEvent);
 
 	xbee.send(zbTx);
 
