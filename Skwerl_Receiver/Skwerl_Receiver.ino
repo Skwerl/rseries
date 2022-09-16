@@ -126,8 +126,8 @@ int servo10Pin = 12;				// Channel 10
 // Ranges
 int chan1Min = 50;					// Channel 1 Min - Left Motor
 int chan1Max = 150;					// Channel 1 Max - Left Motor
-int chan2Min = chan1Min;			// Channel 2 Min - Right Motor
-int chan2Max = chan1Max;			// Channel 2 Max - Right Motor
+int chan2Min = chan1Min;		// Channel 2 Min - Right Motor
+int chan2Max = chan1Max;		// Channel 2 Max - Right Motor
 int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
 int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
 int chan4Min = 120;					// Channel 4 Min - Holo Movement Up/Down
@@ -149,7 +149,6 @@ int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correc
 int chan4Neutral = min(chan4Min,chan4Max)+(abs(chan4Max-chan4Min)/2)+chan4correct;
 int chan5Neutral = min(chan5Min,chan5Max)+(abs(chan5Max-chan5Min)/2)+chan5correct;
 
-/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
@@ -159,7 +158,7 @@ void setup() {
 	Serial1.begin(19200);
 	Serial2.begin(38400);
 
-	xbee.setSerial(Serial1);							// Setup Xbee to use Serial1
+	xbee.setSerial(Serial1);						// Setup Xbee to use Serial1
 	xbee.begin(19200);									// Setup Xbee to begin at 19200
 
 	Serial.println(" ");  
@@ -264,15 +263,15 @@ void handleEvent() {
 	}
 
 	/*
-	Serial.print(">> joyx =");Serial.print(joyx);
-	Serial.print("\tjoyy =");Serial.print(joyy);
-	Serial.print("\taccx =");Serial.print(accx);
-	Serial.print("\taccy =");Serial.print(accy);
-	Serial.print("\taccz =");Serial.print(accz);
-	Serial.print("\ttriggerEvent =");Serial.println(triggerEvent);
+	Serial.print(">> joyx ="); Serial.print(joyx);
+	Serial.print("\tjoyy ="); Serial.print(joyy);
+	Serial.print("\taccx ="); Serial.print(accx);
+	Serial.print("\taccy ="); Serial.print(accy);
+	Serial.print("\taccz ="); Serial.print(accz);
+	Serial.print("\ttriggerEvent ="); Serial.println(triggerEvent);
 	*/
 	
-	char* stick = "CENTER";
+	String stick = "CENTER";
 	if (joyx >= 133) {
 		stick = "RIGHT";
 	} else if (joyx <= 123) {
@@ -323,7 +322,6 @@ void handleEvent() {
 
 		case 254:
 			Serial.println("Z+C Buttons Pressed");
-
 			// Special stuff...
 			if (stick == "UP") {
 				// Toggle Holos:
