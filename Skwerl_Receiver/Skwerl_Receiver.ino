@@ -1,20 +1,22 @@
 /*
- * Astromech RSeries Receiver for the R2 Builders Club
- * Skwerl's Fork
- *  
- * Heavily based on Michael Erwin's
- * RSeries Open Controller Project
- * http://code.google.com/p/rseries-open-control/
- *
- * Requires Arduino 1.0 IDE
- *
+   Astromech RSeries Receiver for the R2 Builders Club
+   Skwerl's Fork
+
+   Heavily based on Michael Erwin's
+   RSeries Open Controller Project
+   http://code.google.com/p/rseries-open-control/
+
 */
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
-///////////////////////* Global Config *////////////////////////////////////////////////////////////
+///////////////////////* Core Configuration *///////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
-// Placeholder
+#define CONSOLE_BAUD 9600
+#define XBEE_BAUD 19200
+#define SOUND_BAUD 38400
+unsigned long controlTimer = 0;
+unsigned long controlSmoothing = 50;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Libraries *////////////////////////////////////////////////////////////////
@@ -33,9 +35,9 @@ XBeeResponse response = XBeeResponse();
 ZBRxResponse rx = ZBRxResponse();
 ModemStatusResponse msr = ModemStatusResponse();
 
-uint8_t idCmd[] = {'I','D'};
-uint8_t opCmd[] = {'O','P'};
-uint8_t dbCmd[] = {'D','B'};
+uint8_t idCmd[] = {'I', 'D'};
+uint8_t opCmd[] = {'O', 'P'};
+uint8_t dbCmd[] = {'D', 'B'};
 uint8_t payload[] = { '0', '0', '0', '0', '0', '0'}; // Our XBee Payload of 6 values (txVCC=2, txVCA=2, future=2)
 
 AtCommandRequest atRequest = AtCommandRequest(opCmd);
@@ -98,7 +100,7 @@ int differentialMapX, differentialMapY = 0;
 
 boolean safety = true;
 int safetyCount = 0;
-int safetyThreshold = 14*100;
+int safetyThreshold = 14 * 100;
 boolean servoClear = false;
 
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
@@ -128,8 +130,10 @@ int chan1Min = 50;					// Channel 1 Min - Left Motor
 int chan1Max = 150;					// Channel 1 Max - Left Motor
 int chan2Min = chan1Min;		// Channel 2 Min - Right Motor
 int chan2Max = chan1Max;		// Channel 2 Max - Right Motor
-int chan3Min = 120;					// Channel 3 Min - Dome Rotation LEFT 
-int chan3Max = 56;					// Channel 3 Max - Dome Rotation RIGHT
+
+int chan3Min = 120;         // Channel 3 Min - Dome Rotation LEFT
+int chan3Max = 56;          // Channel 3 Max - Dome Rotation RIGHT
+
 int chan4Min = 120;					// Channel 4 Min - Holo Movement Up/Down
 int chan4Max = 50;					// Channel 4 Max - Holo Movement Up/Down
 int chan5Min = 120;					// Channel 5 Min - Holo Movement Left/Right
@@ -142,102 +146,103 @@ int chan3correct = 0;
 int chan4correct = 0;
 int chan5correct = 0;
 
-// Neutral Adjustments 
-int chan1Neutral = min(chan1Min,chan1Max)+(abs(chan1Max-chan1Min)/2)+chan1correct;
-int chan2Neutral = min(chan2Min,chan2Max)+(abs(chan2Max-chan2Min)/2)+chan2correct;
-int chan3Neutral = min(chan3Min,chan3Max)+(abs(chan3Max-chan3Min)/2)+chan3correct;
-int chan4Neutral = min(chan4Min,chan4Max)+(abs(chan4Max-chan4Min)/2)+chan4correct;
-int chan5Neutral = min(chan5Min,chan5Max)+(abs(chan5Max-chan5Min)/2)+chan5correct;
+// Neutral Adjustments
+int chan1Neutral = min(chan1Min, chan1Max) + (abs(chan1Max - chan1Min) / 2) + chan1correct;
+int chan2Neutral = min(chan2Min, chan2Max) + (abs(chan2Max - chan2Min) / 2) + chan2correct;
+int chan3Neutral = min(chan3Min, chan3Max) + (abs(chan3Max - chan3Min) / 2) + chan3correct;
+int chan4Neutral = min(chan4Min, chan4Max) + (abs(chan4Max - chan4Min) / 2) + chan4correct;
+int chan5Neutral = min(chan5Min, chan5Max) + (abs(chan5Max - chan5Min) / 2) + chan5correct;
 
+/*////////////////////////////////////////////////////////////////////////////////////////////////*/
 ///////////////////////* Arduino Functions *////////////////////////////////////////////////////////
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 void setup() {
-	
-	Serial.begin(9600);
-	Serial1.begin(19200);
-	Serial2.begin(38400);
 
-	xbee.setSerial(Serial1);						// Setup Xbee to use Serial1
-	xbee.begin(19200);									// Setup Xbee to begin at 19200
+  Serial.begin(CONSOLE_BAUD);
+  Serial1.begin(XBEE_BAUD);
+  Serial2.begin(SOUND_BAUD);
 
-	Serial.println(" ");  
-	Serial.println(" ");  
-	Serial.println("Listening...");  
+  xbee.setSerial(Serial1);						// Setup Xbee to use Serial1
+  xbee.begin(XBEE_BAUD);							// Setup Xbee to begin at 19200
 
-	chan1servo.attach(servo1Pin);  // Left Foot Motor
-	chan2servo.attach(servo2Pin);  // Right Foot Motor
-	chan3servo.attach(servo3Pin);  // Dome Motor 
-	chan4servo.attach(servo4Pin);  // Holo Up/Down 
-	chan5servo.attach(servo5Pin);  // Holo Left/Right
-	chan6servo.attach(servo6Pin);  // HPs Switch 
+  Serial.println(" ");
+  Serial.println(" ");
+  Serial.println("Listening...");
 
-	stickCenterX = min(joyxmin,joyxmax)+(abs(joyxmax-joyxmin)/2);
-	stickCenterY = min(joyymin,joyymax)+(abs(joyymax-joyymin)/2);
+  chan1servo.attach(servo1Pin);  // Left Foot Motor
+  chan2servo.attach(servo2Pin);  // Right Foot Motor
+  chan3servo.attach(servo3Pin);  // Dome Motor
+  chan4servo.attach(servo4Pin);  // Holo Up/Down
+  chan5servo.attach(servo5Pin);  // Holo Left/Right
+  chan6servo.attach(servo6Pin);  // HPs Switch
 
-	clearServos();
+  stickCenterX = min(joyxmin, joyxmax) + (abs(joyxmax - joyxmin) / 2);
+  stickCenterY = min(joyymin, joyymax) + (abs(joyymax - joyymin) / 2);
 
-	//delay(3000);
-	//getOP();
+  clearServos();
 
-	startupChime();
-	
-	//testServo();
+  //delay(3000);
+  //getOP();
+
+  startupChime();
+
+  //testServo();
 
 }
 
 void loop() {
 
-	safetyCount++;
-	servoClear = true;
-	xbee.readPacket();
-	
-	if (Serial2.available()) {
-		mp3Byte = Serial2.read();
-		Serial.print("I received: ");
-		Serial.println(mp3Byte, DEC);
-		if (mp3Byte == 88) {
-			mp3Playing = false;
-		}
-	}
+  safetyCount++;
+  servoClear = true;
+  xbee.readPacket();
 
-	if (xbee.getResponse().isAvailable()) {
-		//Serial.println("Got something...");
-		if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-			//Serial.println("Got a ZB RX Packet...");
-			xbee.getResponse().getZBRxResponse(rx);
-			servoClear = false;
-			handleEvent();
-			if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
-				//Serial.println("Sender got ACK");  
-			} else {
-				//Serial.println("Sender did not get ACK");  
-			}
-			// Set dataLed PWM to value of the first byte in the data
-			// analogWrite(dataLed, rx.getData(0));
-		} else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {
-			xbee.getResponse().getModemStatusResponse(msr);
-			// The local XBee sends this response on certain events, like association/dissociation
-			if (msr.getStatus() == ASSOCIATED) {
-				Serial.println("Associated");
-				getOP();
-			} else if (msr.getStatus() == DISASSOCIATED) {
-				Serial.println("Disassociated");  
-			} else {
-				Serial.println("Hmm...");  
-			}
-		}
-	} else if (xbee.getResponse().isError()) {
-		//Serial.print("Error reading packet.  Error code: ");  
-		//Serial.println(xbee.getResponse().getErrorCode());
-	}
+  if (Serial2.available()) {
+    mp3Byte = Serial2.read();
+    Serial.print("I received: ");
+    Serial.println(mp3Byte, DEC);
+    if (mp3Byte == 88) {
+      mp3Playing = false;
+    }
+  }
 
-	if (safetyCount >= safetyThreshold) {
-		safety = true;
-		if (servoClear) {
-			clearServos();
-		}
-	}
+  if (xbee.getResponse().isAvailable()) {
+    //Serial.println("Got something...");
+    if (xbee.getResponse().getApiId() == ZB_RX_RESPONSE) {
+      //Serial.println("Got a ZB RX Packet...");
+      xbee.getResponse().getZBRxResponse(rx);
+      servoClear = false;
+      handleEvent();
+      if (rx.getOption() == ZB_PACKET_ACKNOWLEDGED) {
+        //Serial.println("Sender got ACK");
+      } else {
+        //Serial.println("Sender did not get ACK");
+      }
+      // Set dataLed PWM to value of the first byte in the data
+      // analogWrite(dataLed, rx.getData(0));
+    } else if (xbee.getResponse().getApiId() == MODEM_STATUS_RESPONSE) {
+      xbee.getResponse().getModemStatusResponse(msr);
+      // The local XBee sends this response on certain events, like association/dissociation
+      if (msr.getStatus() == ASSOCIATED) {
+        Serial.println("Associated");
+        getOP();
+      } else if (msr.getStatus() == DISASSOCIATED) {
+        Serial.println("Disassociated");
+      } else {
+        Serial.println("Hmm...");
+      }
+    }
+  } else if (xbee.getResponse().isError()) {
+    //Serial.print("Error reading packet. Error code: ");
+    //Serial.println(xbee.getResponse().getErrorCode());
+  }
+
+  if (safetyCount >= safetyThreshold) {
+    safety = true;
+    if (servoClear) {
+      clearServos();
+    }
+  }
 
 }
 
@@ -247,230 +252,249 @@ void loop() {
 
 void handleEvent() {
 
-	int joyx = rx.getData()[0];				// Left/Right
-	int joyy = rx.getData()[1];				// Up/Down
-	int accx = rx.getData()[2];				// Nunchuk X Acceleramator
-	int accy = rx.getData()[3];				// Nunchuk Y Acceleramator
-	int accz = rx.getData()[4];				// Nunchuk Z Acceleramator
-	triggerEvent = rx.getData()[7];
-	controlMode = rx.getData()[8];
+  // This didn't work as expected, but let's save it for later...
+  //  unsigned long timerNow = millis();
+  //  if (timerNow >= (controlTimer + controlSmoothing)) {
+  //    chan3servo.write(stickMapped);
+  //    controlTimer = timerNow;
+  //  }
 
-	if (controlMode > 0) {
-		safety = false;
-		safetyCount = 0;
-	}
+  int joyx = rx.getData()[0];				// Left/Right
+  int joyy = rx.getData()[1];				// Up/Down
+  int accx = rx.getData()[2];				// Nunchuk X Acceleramator
+  int accy = rx.getData()[3];				// Nunchuk Y Acceleramator
+  int accz = rx.getData()[4];				// Nunchuk Z Acceleramator
+  triggerEvent = rx.getData()[7];
+  controlMode = rx.getData()[8];
 
-	/*
-	Serial.print(">> joyx ="); Serial.print(joyx);
-	Serial.print("\tjoyy ="); Serial.print(joyy);
-	Serial.print("\taccx ="); Serial.print(accx);
-	Serial.print("\taccy ="); Serial.print(accy);
-	Serial.print("\taccz ="); Serial.print(accz);
-	Serial.print("\ttriggerEvent ="); Serial.println(triggerEvent);
-	*/
-	
-	String stick = "CENTER";
-	if (joyx >= 133) {
-		stick = "RIGHT";
-	} else if (joyx <= 123) {
-		stick = "LEFT";
-	} else if (joyy >= 133) {
-		stick = "UP";
-	} else if (joyy <= 123) {
-		stick = "DOWN";
-	}	
+  if (controlMode > 0) {
+    safety = false;
+    safetyCount = 0;
+  }
 
-	switch (triggerEvent) {
+  /*
+    Serial.print(">> joyx ="); Serial.print(joyx);
+    Serial.print("\tjoyy ="); Serial.print(joyy);
+    Serial.print("\taccx ="); Serial.print(accx);
+    Serial.print("\taccy ="); Serial.print(accy);
+    Serial.print("\taccz ="); Serial.print(accz);
+    Serial.print("\ttriggerEvent ="); Serial.println(triggerEvent);
+  */
 
-		// Nunchuk triggers first...
+  String stick = "CENTER";
+  if (joyx >= 133) {
+    stick = "RIGHT";
+  } else if (joyx <= 123) {
+    stick = "LEFT";
+  } else if (joyy >= 133) {
+    stick = "UP";
+  } else if (joyy <= 123) {
+    stick = "DOWN";
+  }
 
-		case 252:
-			Serial.println("C Button Pressed");
-			// Play sound...
-			if (stick == "UP") {
-				// Play "happy" sound:
-				randomSound(false, true, false, false);
-			} else if (stick == "LEFT") {
-				// Play "scared" sound:
-				randomSound(false, false, true, false);
-			} else if (stick == "RIGHT") {
-				// Play "angry" sound:
-				randomSound(false, false, false, true);
-			} else if (stick == "DOWN") {
-				// Send STOP command:
-				stopSound();
-			} else {
-				randomSound(moodChill, moodHappy, moodScary, moodAngry);
-			}
-			break;
+  switch (triggerEvent) {
 
-		case 253:
-			Serial.println("Z Button Pressed");
-			// Spin dome...
-			if (stick == "LEFT") {
-				stickMapped = map(joyx, stickCenterX, joyxmin, chan3Neutral, chan3Min);
-				chan3servo.write(stickMapped);
-			} else if (stick == "RIGHT") {
-				stickMapped = map(joyx, stickCenterX, joyxmax, chan3Neutral, chan3Max);
-				chan3servo.write(stickMapped);
-			} else {
-				chan3servo.write(chan3Neutral);
-			}
-			break;
+    // Nunchuk triggers first...
 
-		case 254:
-			Serial.println("Z+C Buttons Pressed");
-			// Special stuff...
-			if (stick == "UP") {
-				// Toggle Holos:
-				toggleHPs();
-			} else if (stick == "DOWN") {
-				// Cycle Mode:
-				cycleMode();
-			}
-			break;
+    case 252:
+      Serial.println("C Button Pressed");
+      // Play sound...
+      if (stick == "UP") {
+        // Play "happy" sound:
+        randomSound(false, true, false, false);
+      } else if (stick == "LEFT") {
+        // Play "scared" sound:
+        randomSound(false, false, true, false);
+      } else if (stick == "RIGHT") {
+        // Play "angry" sound:
+        randomSound(false, false, false, true);
+      } else if (stick == "DOWN") {
+        // Send STOP command:
+        stopSound();
+      } else {
+        randomSound(moodChill, moodHappy, moodScary, moodAngry);
+      }
+      break;
 
-		case 0:
+    case 253:
+      Serial.println("Z Button Pressed");
+      // Spin dome...
+      if (stick == "LEFT") {
+        stickMapped = map(joyx, stickCenterX, joyxmin, chan3Neutral, chan3Min);
+        chan3servo.write(stickMapped);
+        delay(15); // No jitter!
+      } else if (stick == "RIGHT") {
+        stickMapped = map(joyx, stickCenterX, joyxmax, chan3Neutral, chan3Max);
+        chan3servo.write(stickMapped);
+        delay(15); // No jitter!
+      } else {
+        chan3servo.write(chan3Neutral);
+        delay(15);
+      }
+      break;
 
-			if (controlMode == 1) {
+    case 254:
+      Serial.println("Z+C Buttons Pressed");
+      // Special stuff...
+      if (stick == "UP") {
+        // Toggle Holos:
+        toggleHPs();
+      } else if (stick == "DOWN") {
+        // Cycle Mode:
+        cycleMode();
+      }
+      break;
 
-				// Park; Holo Control
+    case 0:
 
-				if (stick == "UP") {
-					stickMapped = map(joyy, stickCenterY, joyymin, chan4Neutral, chan4Min);
-					chan4servo.write(stickMapped);
-				} else if (stick == "DOWN") {
-					stickMapped = map(joyy, stickCenterY, joyymax, chan4Neutral, chan4Max);
-					chan4servo.write(stickMapped);
-				}
-	
-				if (stick == "LEFT") {
-					stickMapped = map(joyx, stickCenterX, joyxmin, chan5Neutral, chan5Min);
-					chan5servo.write(stickMapped);
-				} else if (stick == "RIGHT") {
-					stickMapped = map(joyx, stickCenterX, joyxmax, chan5Neutral, chan5Max);
-					chan5servo.write(stickMapped);
-				}
-	
-				if (stick != "UP" && stick != "DOWN" && stick != "LEFT" && stick != "RIGHT") {
-					//Serial.println("Clearing servos...");
-					clearServos();
-				}
-			
-			
-			}
+      if (controlMode == 3) {
 
-			if (controlMode == 2) {
+        // Idle; Holo Control
 
-				// Drive; Motor Control
+        int holoPos;
 
-				differentialMapX = map(joyx,joyxmin,joyxmax,0,1023);
-				differentialMapY = map(joyy,joyymin,joyymax,0,1023);
+        if (stick == "UP") {
+          stickMapped = map(joyy, stickCenterY, joyymin, chan4Neutral, chan4Min);
+          chan4servo.write(stickMapped);
+          delay(15); // No jitter!
+        } else if (stick == "DOWN") {
+          stickMapped = map(joyy, stickCenterY, joyymax, chan4Neutral, chan4Max);
+          chan4servo.write(stickMapped);
+          delay(15); // No jitter!
+        }
 
-				direction = -(512-differentialMapX)/2;
-				throttle = +(512-differentialMapY)/2;
+        if (stick == "LEFT") {
+          stickMapped = map(joyx, stickCenterX, joyxmin, chan5Neutral, chan5Min);
+          chan5servo.write(stickMapped);
+          delay(15); // No jitter!
+        } else if (stick == "RIGHT") {
+          stickMapped = map(joyx, stickCenterX, joyxmax, chan5Neutral, chan5Max);
+          chan5servo.write(stickMapped);
+          delay(15); // No jitter!
+        }
 
-				leftMotor = throttle+direction;
-				rightMotor = throttle-direction;
-				leftMotorScale =  abs(leftMotor/255.0);
-				rightMotorScale =  abs(rightMotor/255.0);
-				maxMotorScale = max(leftMotorScale,rightMotorScale);
-				maxMotorScale = max(1,maxMotorScale);				
-				leftMotorScaled = constrain(leftMotor/maxMotorScale,-255,255);
-				rightMotorScaled = constrain(rightMotor/maxMotorScale,-255,255);
-				
-				// Map motor values back to channel min/max...
-				leftMotor = map(leftMotorScaled,-255,255,chan1Min,chan1Max);
-				rightMotor = map(rightMotorScaled,-255,255,chan1Min,chan1Max);
-				
-				if (safety == false) {
-					chan1servo.write(leftMotor);
-					chan2servo.write(rightMotor);
-				} else {
-					chan1servo.write(chan1Neutral);
-					chan2servo.write(chan2Neutral);				
-				}
+        if (stick != "UP" && stick != "DOWN" && stick != "LEFT" && stick != "RIGHT") {
+          //Serial.println("Clearing servos...");
+          clearServos();
+        } else {
 
-			}
+        }
 
-			break;
 
-		default:
-			clearServos();
+      }
 
-	}
+      if (controlMode == 2) {
+
+        // Drive; Motor Control
+
+        differentialMapX = map(joyx, joyxmin, joyxmax, 0, 1023);
+        differentialMapY = map(joyy, joyymin, joyymax, 0, 1023);
+
+        direction = -(512 - differentialMapX) / 2;
+        throttle = +(512 - differentialMapY) / 2;
+
+        leftMotor = throttle + direction;
+        rightMotor = throttle - direction;
+        leftMotorScale =  abs(leftMotor / 255.0);
+        rightMotorScale =  abs(rightMotor / 255.0);
+        maxMotorScale = max(leftMotorScale, rightMotorScale);
+        maxMotorScale = max(1, maxMotorScale);
+        leftMotorScaled = constrain(leftMotor / maxMotorScale, -255, 255);
+        rightMotorScaled = constrain(rightMotor / maxMotorScale, -255, 255);
+
+        // Map motor values back to channel min/max...
+        leftMotor = map(leftMotorScaled, -255, 255, chan1Min, chan1Max);
+        rightMotor = map(rightMotorScaled, -255, 255, chan1Min, chan1Max);
+
+        if (safety == false) {
+          chan1servo.write(leftMotor);
+          chan2servo.write(rightMotor);
+        } else {
+          chan1servo.write(chan1Neutral);
+          chan2servo.write(chan2Neutral);
+        }
+
+      }
+
+      break;
+
+    default:
+      clearServos();
+
+  }
 
 }
 
 void startupChime() {
 
-	// This function can execute any chime or sequence
-	// You wish to see/hear when your droid comes online
+  // This function can execute any chime or sequence
+  // You wish to see/hear when your droid comes online
 
-	Serial2.write('t');
-	//Serial2.write(164);
-	Serial2.write(15);
+  Serial2.write('t');
+  //Serial2.write(164);
+  Serial2.write(15);
 
 }
 
 void clearServos() {
 
-	chan1servo.write(chan1Neutral);
-	chan2servo.write(chan2Neutral);	
-	chan3servo.write(chan3Neutral);
-	chan4servo.write(chan4Neutral);
-	chan5servo.write(chan5Neutral);
+  chan1servo.write(chan1Neutral);
+  chan2servo.write(chan2Neutral);
+  chan3servo.write(chan3Neutral);
+  chan4servo.write(chan4Neutral);
+  chan5servo.write(chan5Neutral);
+  delay(15); // No jitter!
 
 }
 
 void getRSSI() {
 
-	atRequest.setCommand(dbCmd);  
-	xbee.send(atRequest);
-	if (xbee.readPacket(5000)) {
-		xbee.getResponse().getAtCommandResponse(atResponse);			
-		if (atResponse.isOk()) {
-			if (atResponse.getValueLength() > 0) {
-				//txRSSI = atResponse.getValue()[0];
-				//Serial.print("RSSI Value: ");
-				//Serial.println(txRSSI);
-			} else {
-				//Serial.print("Response empty");
-			}
-		} else {
-			//Serial.print("Command failed");
-		}
-	}
+  atRequest.setCommand(dbCmd);
+  xbee.send(atRequest);
+  if (xbee.readPacket(5000)) {
+    xbee.getResponse().getAtCommandResponse(atResponse);
+    if (atResponse.isOk()) {
+      if (atResponse.getValueLength() > 0) {
+        //txRSSI = atResponse.getValue()[0];
+        //Serial.print("RSSI Value: ");
+        //Serial.println(txRSSI);
+      } else {
+        //Serial.print("Response empty");
+      }
+    } else {
+      //Serial.print("Command failed");
+    }
+  }
 
 }
 
 void getOP() {
 
-	atRequest.setCommand(opCmd);  
-	xbee.send(atRequest);
-	if (xbee.readPacket(5000)) {
-		xbee.getResponse().getAtCommandResponse(atResponse);			
-		if (atResponse.isOk()) {
-			Serial.print("Command [");
-			Serial.print(atResponse.getCommand()[0]);
-			Serial.print(atResponse.getCommand()[1]);
-			Serial.println("] was successful!");
-			if (atResponse.getValueLength() > 0) {
-				Serial.print("Command value length is ");
-				Serial.println(atResponse.getValueLength(), DEC);
-				Serial.print("Command value: ");
-				for (int i = 0; i < atResponse.getValueLength(); i++) {
-					Serial.print(atResponse.getValue()[i], HEX);
-					Serial.print(" ");
-				}
-				Serial.println("");
-			} else {
-				Serial.print("Response empty");
-			}
-		} else {
-			Serial.print("Command failed");
-		}
-	}
+  atRequest.setCommand(opCmd);
+  xbee.send(atRequest);
+  if (xbee.readPacket(5000)) {
+    xbee.getResponse().getAtCommandResponse(atResponse);
+    if (atResponse.isOk()) {
+      Serial.print("Command [");
+      Serial.print(atResponse.getCommand()[0]);
+      Serial.print(atResponse.getCommand()[1]);
+      Serial.println("] was successful!");
+      if (atResponse.getValueLength() > 0) {
+        Serial.print("Command value length is ");
+        Serial.println(atResponse.getValueLength(), DEC);
+        Serial.print("Command value: ");
+        for (int i = 0; i < atResponse.getValueLength(); i++) {
+          Serial.print(atResponse.getValue()[i], HEX);
+          Serial.print(" ");
+        }
+        Serial.println("");
+      } else {
+        Serial.print("Response empty");
+      }
+    } else {
+      Serial.print("Command failed");
+    }
+  }
 
 }
 
@@ -479,107 +503,120 @@ void getOP() {
 /*////////////////////////////////////////////////////////////////////////////////////////////////*/
 
 void playSound(int sample) {
-	if (mp3Playing == false) {
-		Serial.print("Playing sample #");
-		Serial.println(sample);
-		Serial2.write('t');
-		Serial2.write(sample);
-		mp3Playing = true;
-	}
+  if (mp3Playing == false) {
+    Serial.print("Playing sample #");
+    Serial.println(sample);
+    Serial2.write('t');
+    Serial2.write(sample);
+    mp3Playing = true;
+  }
 }
 
 void stopSound() {
-	if (mp3Playing == true) {
-		Serial.println("Stop");
-		Serial2.write('O');
-		mp3Playing = false;
-	}
-	clearServos();
+  if (mp3Playing == true) {
+    Serial.println("Stop");
+    Serial2.write('O');
+    mp3Playing = false;
+  }
+  clearServos();
 }
 
 void randomSound(boolean chill, boolean happy, boolean scary, boolean angry) {
-	// Play "casual" sound, or random sound apprpriate for mood:
-	if (chill && !happy && !scary && !angry) {
-		// Casual mode:
-		Serial.print("Playing casual sound...");
-		randNum = random(1,41);
-	} else if (!chill && happy && !scary && !angry) {
-		// Happy mode:
-		Serial.print("Playing happy sound...");
-		randNum = random(41,83);
-	} else if (!chill && !happy && scary && !angry) {
-		// Scared mode:
-		Serial.print("Playing cautious sound...");
-		randNum = random(137,150);
-	} else if (!chill && !happy && !scary && angry) {
-		// Angry mode:
-		Serial.print("Playing angry sound...");
-		randNum = random(83,137);
-	} else if (!chill && !happy && !scary && !angry) {
-		// No mode selected, pick anything or else we go into an endless loop:
-		randNum = random(1,150);
-	} else {
-		// Multiple moods active, loop for appropriate sound ID...
-		Serial.print("Selecting from multiple: ");
-		Serial.print(chill); Serial.print(" ");
-		Serial.print(happy); Serial.print(" ");
-		Serial.print(scary); Serial.print(" ");
-		Serial.print(angry); Serial.println(" ");
-		boolean goodSound = false;
-		while (!goodSound) {
-			randNum = random(1,150);
-			if (((randNum>=1)&&(randNum<41)) && chill) { goodSound = true; }
-			if (((randNum>=41)&&(randNum<83)) && happy) { goodSound = true; }
-			if (((randNum>=83)&&(randNum<137)) && scary) { goodSound = true; }
-			if (((randNum>=137)&&(randNum<=149)) && angry) { goodSound = true; }
-		}
-	}
-	playSound(randNum);
+  // Play "casual" sound, or random sound apprpriate for mood:
+  if (chill && !happy && !scary && !angry) {
+    // Casual mode:
+    Serial.print("Playing casual sound...");
+    randNum = random(1, 41);
+  } else if (!chill && happy && !scary && !angry) {
+    // Happy mode:
+    Serial.print("Playing happy sound...");
+    randNum = random(41, 83);
+  } else if (!chill && !happy && scary && !angry) {
+    // Scared mode:
+    Serial.print("Playing cautious sound...");
+    randNum = random(137, 150);
+  } else if (!chill && !happy && !scary && angry) {
+    // Angry mode:
+    Serial.print("Playing angry sound...");
+    randNum = random(83, 137);
+  } else if (!chill && !happy && !scary && !angry) {
+    // No mode selected, pick anything or else we go into an endless loop:
+    randNum = random(1, 150);
+  } else {
+    // Multiple moods active, loop for appropriate sound ID...
+    Serial.print("Selecting from multiple: ");
+    Serial.print(chill); Serial.print(" ");
+    Serial.print(happy); Serial.print(" ");
+    Serial.print(scary); Serial.print(" ");
+    Serial.print(angry); Serial.println(" ");
+    boolean goodSound = false;
+    while (!goodSound) {
+      randNum = random(1, 150);
+      if (((randNum >= 1) && (randNum < 41)) && chill) {
+        goodSound = true;
+      }
+      if (((randNum >= 41) && (randNum < 83)) && happy) {
+        goodSound = true;
+      }
+      if (((randNum >= 83) && (randNum < 137)) && scary) {
+        goodSound = true;
+      }
+      if (((randNum >= 137) && (randNum <= 149)) && angry) {
+        goodSound = true;
+      }
+    }
+  }
+  playSound(randNum);
 }
 
 void toggleHPs() {
-	if (holosOn) {
-		Serial.println("HPs OFF");
-		chan6servo.write(80);
-	} else {
-		Serial.println("HPs ON");
-		chan6servo.write(100);
-	}
-	holosOn = !holosOn;
+  if (holosOn) {
+    Serial.println("HPs OFF");
+    chan6servo.write(80);
+  } else {
+    Serial.println("HPs ON");
+    chan6servo.write(100);
+  }
+  holosOn = !holosOn;
 }
 
 void cycleMode() {
-	// Logic happens in controller...
-	Serial.print("Control Mode:"); Serial.println(controlMode);
-	playSound(15);
+  // Logic happens in controller...
+  Serial.print("Control Mode:"); Serial.println(controlMode);
+  playSound(15);
 }
 
 void testServo() {
 
-	// Repurposeable function for testing servo ranges...
+  // Repurposeable function for testing servo ranges...
 
-	int i = 0;
-	boolean reverse = false;
+  int i = 0;
+  boolean reverse = false;
 
-	while(1) {
+  while (1) {
 
-		if (i > 255) { reverse = true; }
-		if (i < 0) { reverse = false; }
+    if (i > 255) {
+      reverse = true;
+    }
+    if (i < 0) {
+      reverse = false;
+    }
 
-		chan1servo.write(i);
-		//chan2servo.write(i);
+    //chan1servo.write(i);
+    //chan2servo.write(i);
+    chan3servo.write(i);
 
-		Serial.print("PWM Signal: ");
-		Serial.println(i);
-	
-		if (!reverse) {
-			i++;		
-		} else {
-			i--;
-		}
-		
-		delay(200);
-	
-	}
+    Serial.print("PWM Signal: ");
+    Serial.println(i);
+
+    if (!reverse) {
+      i++;
+    } else {
+      i--;
+    }
+
+    delay(200);
+
+  }
 
 }
